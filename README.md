@@ -1,0 +1,1 @@
+# Emulated EEPROM based on STM32 application note AN3969
