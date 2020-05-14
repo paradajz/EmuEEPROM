@@ -53,12 +53,6 @@ class EmuEEPROM
     class StorageAccess
     {
         public:
-        typedef struct
-        {
-            uint32_t startAddress;
-            uint8_t  sector;
-        } pageDescriptor_t;
-
         enum class page_t : uint8_t
         {
             page1,
