@@ -23,6 +23,9 @@
 
 bool EmuEEPROM::init()
 {
+    if (!storageAccess.init())
+        return false;
+
     auto page1Status = storageAccess.pageStatus(StorageAccess::page_t::page1);
     auto page2Status = storageAccess.pageStatus(StorageAccess::page_t::page2);
 

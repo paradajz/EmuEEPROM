@@ -12,6 +12,11 @@ namespace
         public:
         StorageMock() {}
 
+        bool init() override
+        {
+            return true;
+        }
+
         uint32_t startAddress(page_t page) override
         {
             if (page == page_t::page1)

@@ -61,6 +61,7 @@ class EmuEEPROM
 
         StorageAccess() {}
 
+        virtual bool                    init()                                   = 0;
         virtual uint32_t                startAddress(page_t page)                = 0;
         virtual bool                    erasePage(page_t page)                   = 0;
         virtual bool                    write16(uint32_t address, uint16_t data) = 0;
