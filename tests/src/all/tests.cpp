@@ -17,17 +17,17 @@ namespace
             return true;
         }
 
-        uint32_t startAddress(page_t page) override
+        uint32_t startAddress(EmuEEPROM::page_t page) override
         {
-            if (page == page_t::page1)
+            if (page == EmuEEPROM::page_t::page1)
                 return 0;
             else
                 return PAGE_SIZE;
         }
 
-        bool erasePage(page_t page) override
+        bool erasePage(EmuEEPROM::page_t page) override
         {
-            if (page == page_t::page1)
+            if (page == EmuEEPROM::page_t::page1)
                 memset(pageArray, 0xFF, PAGE_SIZE);
             else
                 memset(&pageArray[PAGE_SIZE], 0xFF, PAGE_SIZE);
@@ -75,35 +75,6 @@ namespace
             return true;
         }
 
-        EmuEEPROM::pageStatus_t pageStatus(page_t page) override
-        {
-            uint32_t                data;
-            EmuEEPROM::pageStatus_t status;
-
-            if (page == page_t::page1)
-                read32(0, data);
-            else
-                read32(PAGE_SIZE, data);
-
-            switch (data)
-            {
-            case static_cast<uint32_t>(EmuEEPROM::pageStatus_t::erased):
-                status = EmuEEPROM::pageStatus_t::erased;
-                break;
-
-            case static_cast<uint32_t>(EmuEEPROM::pageStatus_t::receiving):
-                status = EmuEEPROM::pageStatus_t::receiving;
-                break;
-
-            case static_cast<uint32_t>(EmuEEPROM::pageStatus_t::valid):
-            default:
-                status = EmuEEPROM::pageStatus_t::valid;
-                break;
-            }
-
-            return status;
-        }
-
         size_t pageSize() override
         {
             return PAGE_SIZE;
@@ -119,8 +90,8 @@ namespace
 
 TEST_SETUP()
 {
-    storageMock.erasePage(EmuEEPROM::StorageAccess::page_t::page1);
-    storageMock.erasePage(EmuEEPROM::StorageAccess::page_t::page2);
+    storageMock.erasePage(EmuEEPROM::page_t::page1);
+    storageMock.erasePage(EmuEEPROM::page_t::page2);
 
     TEST_ASSERT(emuEEPROM.init() == true);
 }
@@ -146,8 +117,8 @@ TEST_CASE(PageTransfer)
     uint16_t writeValue;
 
     //initially, first page is active, while second one is erased
-    TEST_ASSERT(storageMock.pageStatus(EmuEEPROM::StorageAccess::page_t::page1) == EmuEEPROM::pageStatus_t::valid);
-    TEST_ASSERT(storageMock.pageStatus(EmuEEPROM::StorageAccess::page_t::page2) == EmuEEPROM::pageStatus_t::erased);
+    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page1) == EmuEEPROM::pageStatus_t::valid);
+    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page2) == EmuEEPROM::pageStatus_t::erased);
 
     //write variable to the same address n times in order to fill the entire page
     //page transfer should occur after which new page will only have single variable (latest one)
@@ -161,6 +132,6 @@ TEST_CASE(PageTransfer)
     TEST_ASSERT(value == writeValue);
 
     //verify that the second page is active and first one erased
-    TEST_ASSERT(storageMock.pageStatus(EmuEEPROM::StorageAccess::page_t::page2) == EmuEEPROM::pageStatus_t::valid);
-    TEST_ASSERT(storageMock.pageStatus(EmuEEPROM::StorageAccess::page_t::page1) == EmuEEPROM::pageStatus_t::erased);
+    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page2) == EmuEEPROM::pageStatus_t::valid);
+    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page1) == EmuEEPROM::pageStatus_t::erased);
 }

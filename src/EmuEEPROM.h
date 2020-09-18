@@ -50,26 +50,25 @@ class EmuEEPROM
         writeError
     };
 
+    enum class page_t : uint8_t
+    {
+        page1,
+        page2
+    };
+
     class StorageAccess
     {
         public:
-        enum class page_t : uint8_t
-        {
-            page1,
-            page2
-        };
-
         StorageAccess() {}
 
-        virtual bool                    init()                                   = 0;
-        virtual uint32_t                startAddress(page_t page)                = 0;
-        virtual bool                    erasePage(page_t page)                   = 0;
-        virtual bool                    write16(uint32_t address, uint16_t data) = 0;
-        virtual bool                    write32(uint32_t address, uint32_t data) = 0;
-        virtual bool                    read16(uint32_t address, uint16_t& data) = 0;
-        virtual bool                    read32(uint32_t address, uint32_t& data) = 0;
-        virtual EmuEEPROM::pageStatus_t pageStatus(page_t page)                  = 0;
-        virtual size_t                  pageSize()                               = 0;
+        virtual bool     init()                                   = 0;
+        virtual uint32_t startAddress(page_t page)                = 0;
+        virtual bool     erasePage(page_t page)                   = 0;
+        virtual bool     write16(uint32_t address, uint16_t data) = 0;
+        virtual bool     write32(uint32_t address, uint32_t data) = 0;
+        virtual bool     read16(uint32_t address, uint16_t& data) = 0;
+        virtual bool     read32(uint32_t address, uint32_t& data) = 0;
+        virtual size_t   pageSize()                               = 0;
     };
 
     EmuEEPROM(StorageAccess& storageAccess)
@@ -80,6 +79,7 @@ class EmuEEPROM
     readStatus_t  read(uint32_t address, uint16_t& data);
     writeStatus_t write(uint32_t address, uint16_t data);
     bool          format();
+    pageStatus_t  pageStatus(page_t page);
 
     private:
     StorageAccess& storageAccess;
@@ -91,6 +91,6 @@ class EmuEEPROM
     };
 
     writeStatus_t pageTransfer();
-    bool          findValidPage(pageOp_t operation, StorageAccess::page_t& page);
+    bool          findValidPage(pageOp_t operation, page_t& page);
     writeStatus_t writeInternal(uint16_t address, uint16_t data);
 };
