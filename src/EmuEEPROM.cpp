@@ -311,8 +311,8 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
     if (!findValidPage(pageOp_t::read, validPage))
         return writeStatus_t::noPage;
 
-    uint32_t              newPageAddress = storageAccess.startAddress(page_t::page1);
-    page_t oldPage        = page_t::page1;
+    uint32_t newPageAddress = storageAccess.startAddress(page_t::page1);
+    page_t   oldPage        = page_t::page1;
 
     if (validPage == page_t::page2)
     {
