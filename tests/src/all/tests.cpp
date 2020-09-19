@@ -75,7 +75,7 @@ namespace
             return true;
         }
 
-        size_t pageSize() override
+        uint32_t pageSize() override
         {
             return PAGE_SIZE;
         }

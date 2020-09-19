@@ -127,7 +127,7 @@ bool EmuEEPROM::format()
     //copy contents from factory page to page 1 if the page is in correct status
     if (_useFactoryPage && (pageStatus(page_t::pageFactory) == pageStatus_t::valid))
     {
-        for (size_t i = 0; i < storageAccess.pageSize(); i += 4)
+        for (uint32_t i = 0; i < storageAccess.pageSize(); i += 4)
         {
             uint32_t data;
 
