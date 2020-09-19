@@ -85,7 +85,7 @@ namespace
     };
 
     StorageMock storageMock;
-    EmuEEPROM   emuEEPROM(storageMock);
+    EmuEEPROM   emuEEPROM(storageMock, false);
 }    // namespace
 
 TEST_SETUP()

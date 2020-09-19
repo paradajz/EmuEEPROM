@@ -124,8 +124,29 @@ bool EmuEEPROM::format()
     if (!storageAccess.erasePage(page_t::page1))
         return false;
 
-    if (!storageAccess.write32(storageAccess.startAddress(page_t::page1), static_cast<uint32_t>(pageStatus_t::valid)))
-        return false;
+    //copy contents from factory page to page 1 if the page is in correct status
+    if (_useFactoryPage && (pageStatus(page_t::pageFactory) == pageStatus_t::valid))
+    {
+        for (size_t i = 0; i < storageAccess.pageSize(); i += 4)
+        {
+            uint32_t data;
+
+            if (!storageAccess.read32(storageAccess.startAddress(page_t::pageFactory) + i, data))
+                return false;
+
+            if (data == 0xFFFFFFFF)
+                break;    //empty block, no need to go further
+
+            if (!storageAccess.write32(storageAccess.startAddress(page_t::page1) + i, data))
+                return false;
+        }
+    }
+    else
+    {
+        //just set valid status to page1
+        if (!storageAccess.write32(storageAccess.startAddress(page_t::page1), static_cast<uint32_t>(pageStatus_t::valid)))
+            return false;
+    }
 
     return storageAccess.erasePage(page_t::page2);
 }
@@ -371,12 +392,23 @@ EmuEEPROM::pageStatus_t EmuEEPROM::pageStatus(page_t page)
     uint32_t     data;
     pageStatus_t status;
 
-    if (page == page_t::page1)
+    switch (page)
+    {
+    case page_t::page1:
         storageAccess.read32(storageAccess.startAddress(page_t::page1), data);
-    else if (page == page_t::page2)
+        break;
+
+    case page_t::page2:
         storageAccess.read32(storageAccess.startAddress(page_t::page2), data);
-    else
+        break;
+
+    case page_t::pageFactory:
+        storageAccess.read32(storageAccess.startAddress(page_t::pageFactory), data);
+        break;
+
+    default:
         return pageStatus_t::erased;
+    }
 
     switch (data)
     {

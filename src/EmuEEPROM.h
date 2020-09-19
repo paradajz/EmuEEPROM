@@ -53,7 +53,8 @@ class EmuEEPROM
     enum class page_t : uint8_t
     {
         page1,
-        page2
+        page2,
+        pageFactory
     };
 
     class StorageAccess
@@ -71,8 +72,9 @@ class EmuEEPROM
         virtual size_t   pageSize()                               = 0;
     };
 
-    EmuEEPROM(StorageAccess& storageAccess)
+    EmuEEPROM(StorageAccess& storageAccess, bool useFactoryPage)
         : storageAccess(storageAccess)
+        , _useFactoryPage(useFactoryPage)
     {}
 
     bool          init();
@@ -83,6 +85,7 @@ class EmuEEPROM
 
     private:
     StorageAccess& storageAccess;
+    bool           _useFactoryPage;
 
     enum class pageOp_t : uint8_t
     {
