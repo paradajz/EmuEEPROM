@@ -135,3 +135,43 @@ TEST_CASE(PageTransfer)
     TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page2) == EmuEEPROM::pageStatus_t::valid);
     TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page1) == EmuEEPROM::pageStatus_t::erased);
 }
+
+TEST_CASE(PageTransfer2)
+{
+    //initially, first page is active, while second one is erased
+    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page1) == EmuEEPROM::pageStatus_t::valid);
+    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page2) == EmuEEPROM::pageStatus_t::erased);
+
+    //fill half of the page
+    for (int i = 0; i < PAGE_SIZE / 4 / 2 - 1; i++)
+    {
+        TEST_ASSERT(emuEEPROM.write(i, 0) == EmuEEPROM::writeStatus_t::ok);
+    }
+
+    //verify values
+    for (int i = 0; i < PAGE_SIZE / 4 / 2 - 1; i++)
+    {
+        uint16_t value;
+
+        TEST_ASSERT(emuEEPROM.read(i, value) == EmuEEPROM::readStatus_t::ok);
+        TEST_ASSERT(value == 0);
+    }
+
+    //now fill full page with same addresses but with different values
+    for (int i = 0; i < PAGE_SIZE / 4 - 1; i++)
+    {
+        TEST_ASSERT(emuEEPROM.write(i, 1) == EmuEEPROM::writeStatus_t::ok);
+    }
+
+    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page2) == EmuEEPROM::pageStatus_t::valid);
+    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page1) == EmuEEPROM::pageStatus_t::erased);
+
+    //also verify that the memory contains only updated values
+    for (int i = 0; i < PAGE_SIZE / 4 - 1; i++)
+    {
+        uint16_t value;
+
+        TEST_ASSERT(emuEEPROM.read(i, value) == EmuEEPROM::readStatus_t::ok);
+        TEST_ASSERT(value == 1);
+    }
+}
