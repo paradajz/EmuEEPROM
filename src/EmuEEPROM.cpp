@@ -35,16 +35,17 @@ bool EmuEEPROM::init()
     case pageStatus_t::erased:
         if (page2Status == pageStatus_t::valid)
         {
-            //page 1 erased, page 1 valid
-            //erase page 1
+            //page 1 erased, page 2 valid
+            //erase page 1 - make sure the entire page is erased
             storageAccess.erasePage(page_t::page1);
         }
         else if (page2Status == pageStatus_t::receiving)
         {
             //page 1 erased, page 2 in receive state
-            //erase page1
+            //again, make sure entire page1 is erased
             storageAccess.erasePage(page_t::page1);
 
+            //mark page2 as valid
             if (!storageAccess.write32(storageAccess.startAddress(page_t::page2), static_cast<uint32_t>(pageStatus_t::valid)))
                 return false;
         }
@@ -94,7 +95,7 @@ bool EmuEEPROM::init()
         else if (page2Status == pageStatus_t::erased)
         {
             //page 1 valid, page 2 erased
-            //erase page 2
+            //erase page 2 fully
             storageAccess.erasePage(page_t::page2);
         }
         else
