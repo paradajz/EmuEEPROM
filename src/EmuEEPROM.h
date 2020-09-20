@@ -23,6 +23,7 @@
 
 #include <inttypes.h>
 #include <stdio.h>
+#include <vector>
 
 class EmuEEPROM
 {
@@ -84,8 +85,9 @@ class EmuEEPROM
     pageStatus_t  pageStatus(page_t page);
 
     private:
-    StorageAccess& storageAccess;
-    bool           _useFactoryPage;
+    StorageAccess&       storageAccess;
+    bool                 _useFactoryPage;
+    std::vector<uint8_t> varTransferedArray = {};
 
     enum class pageOp_t : uint8_t
     {
@@ -94,6 +96,8 @@ class EmuEEPROM
     };
 
     writeStatus_t pageTransfer();
+    bool          isVarTransfered(uint16_t address);
+    void          markAsTransfered(uint16_t address);
     bool          findValidPage(pageOp_t operation, page_t& page);
     writeStatus_t writeInternal(uint16_t address, uint16_t data);
 };

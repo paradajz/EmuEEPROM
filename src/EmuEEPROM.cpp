@@ -26,6 +26,8 @@ bool EmuEEPROM::init()
     if (!storageAccess.init())
         return false;
 
+    varTransferedArray.resize(storageAccess.pageSize() / 4, 0);
+
     auto page1Status = pageStatus(page_t::page1);
     auto page2Status = pageStatus(page_t::page2);
 
@@ -357,24 +359,35 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
         return writeStatus_t::writeError;
 
     writeStatus_t eepromStatus;
-    uint16_t      data;
 
     //move all variables from one page to another
-    //total number of variables is calculated by dividing page size size with 4
-    //2 bytes for address
-    //2 bytes for single variable
-    //remove 1 since first 4 bytes are header
-    for (uint32_t i = 0; i < (storageAccess.pageSize() / 4) - 1; i++)
+    //start from last address
+    for (uint32_t i = storageAccess.pageSize() - 4; i >= 4; i -= 4)
     {
-        /* Read the other last variable updates */
-        /* In case variable corresponding to the virtual address was found */
-        if (read(i, data) == readStatus_t::ok)
+        uint32_t data;
+
+        if (storageAccess.read32(storageAccess.startAddress(oldPage) + i, data))
         {
-            /* Transfer the variable to the new active page */
-            eepromStatus = writeInternal(i, data);
+            if (data == 0xFFFFFFFF)
+                continue;    //blank variable
+
+            uint16_t value   = data & 0xFFFF;
+            uint16_t address = data >> 16 & 0xFFFF;
+
+            if (isVarTransfered(address))
+                continue;
+
+            //move variable to new active page
+            eepromStatus = writeInternal(address, value);
 
             if (eepromStatus != writeStatus_t::ok)
+            {
                 return eepromStatus;
+            }
+            else
+            {
+                markAsTransfered(address);
+            }
         }
     }
 
@@ -384,6 +397,9 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
     /* Set new Page status to VALID_PAGE status */
     if (!storageAccess.write32(newPageAddress, static_cast<uint32_t>(pageStatus_t::valid)))
         return writeStatus_t::writeError;
+
+    //reset transfered flags
+    std::fill(varTransferedArray.begin(), varTransferedArray.end(), 0);
 
     return writeStatus_t::ok;
 }
@@ -428,4 +444,20 @@ EmuEEPROM::pageStatus_t EmuEEPROM::pageStatus(page_t page)
     }
 
     return status;
+}
+
+bool EmuEEPROM::isVarTransfered(uint16_t address)
+{
+    uint16_t arrayIndex = address / 8;
+    uint16_t varIndex   = address - 8 * arrayIndex;
+
+    return (varTransferedArray.at(arrayIndex) >> varIndex) & 0x01;
+}
+
+void EmuEEPROM::markAsTransfered(uint16_t address)
+{
+    uint16_t arrayIndex = address / 8;
+    uint16_t varIndex   = address - 8 * arrayIndex;
+
+    varTransferedArray.at(arrayIndex) |= (1UL << varIndex);
 }
