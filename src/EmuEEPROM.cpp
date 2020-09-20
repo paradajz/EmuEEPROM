@@ -27,6 +27,7 @@ bool EmuEEPROM::init()
         return false;
 
     varTransferedArray.resize(storageAccess.pageSize() / 4, 0);
+    nextAddToWrite = storageAccess.pageSize();
 
     auto page1Status = pageStatus(page_t::page1);
     auto page2Status = pageStatus(page_t::page2);
@@ -173,6 +174,16 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
         pageEndAddress = pageEndAddress - 4;
     };
 
+    if (nextAddToWrite != storageAccess.pageSize())
+    {
+        //nextAddToWrite contains next address to which new data will be written
+        //subtracting this value by 2 results in having the last written address
+        //this will speed up the finding of read address process since all unused
+        //addresses will be skipped
+        if (nextAddToWrite >= 2)
+            pageEndAddress = nextAddToWrite - 2;
+    }
+
     //check each active page address starting from end
     while (pageEndAddress > pageStartAddress)
     {
@@ -296,32 +307,52 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
         pageStartAddress += 4;
     };
 
-    /* Check each active page address starting from begining */
-    while (pageStartAddress < pageEndAddress)
+    if (nextAddToWrite != storageAccess.pageSize())
     {
-        uint32_t readData = 0;
+        if (nextAddToWrite >= pageEndAddress)
+            return writeStatus_t::pageFull;
 
-        if (storageAccess.read32(pageStartAddress, readData))
+        if (!storageAccess.write16(nextAddToWrite, data))
+            return writeStatus_t::writeError;
+
+        /* Set variable virtual address */
+        if (!storageAccess.write16(nextAddToWrite + 2, address))
+            return writeStatus_t::writeError;
+
+        nextAddToWrite += 4;
+        return writeStatus_t::ok;
+    }
+    else
+    {
+        /* Check each active page address starting from begining */
+        while (pageStartAddress < pageEndAddress)
         {
-            if (readData == 0xFFFFFFFF)
+            uint32_t readData = 0;
+
+            if (storageAccess.read32(pageStartAddress, readData))
             {
-                if (!storageAccess.write16(pageStartAddress, data))
-                    return writeStatus_t::writeError;
+                if (readData == 0xFFFFFFFF)
+                {
+                    if (!storageAccess.write16(pageStartAddress, data))
+                        return writeStatus_t::writeError;
 
-                /* Set variable virtual address */
-                if (!storageAccess.write16(pageStartAddress + 2, address))
-                    return writeStatus_t::writeError;
+                    /* Set variable virtual address */
+                    if (!storageAccess.write16(pageStartAddress + 2, address))
+                        return writeStatus_t::writeError;
 
-                return writeStatus_t::ok;
+                    nextAddToWrite = pageStartAddress + 4;
+
+                    return writeStatus_t::ok;
+                }
+                else
+                {
+                    next();
+                }
             }
             else
             {
                 next();
             }
-        }
-        else
-        {
-            next();
         }
     }
 
@@ -359,6 +390,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
         return writeStatus_t::writeError;
 
     writeStatus_t eepromStatus;
+    nextAddToWrite = storageAccess.pageSize();
 
     //move all variables from one page to another
     //start from last address

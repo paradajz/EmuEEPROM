@@ -88,6 +88,7 @@ class EmuEEPROM
     StorageAccess&       storageAccess;
     bool                 _useFactoryPage;
     std::vector<uint8_t> varTransferedArray = {};
+    uint32_t             nextAddToWrite;
 
     enum class pageOp_t : uint8_t
     {
