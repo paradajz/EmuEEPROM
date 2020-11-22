@@ -74,7 +74,7 @@ class EmuEEPROM
     };
 
     EmuEEPROM(StorageAccess& storageAccess, bool useFactoryPage)
-        : storageAccess(storageAccess)
+        : _storageAccess(storageAccess)
         , _useFactoryPage(useFactoryPage)
     {}
 
@@ -85,17 +85,17 @@ class EmuEEPROM
     pageStatus_t  pageStatus(page_t page);
 
     private:
-    StorageAccess&        storageAccess;
-    bool                  _useFactoryPage;
-    std::vector<uint8_t>  varTransferedArray = {};
-    std::vector<uint16_t> _eepromCache       = {};
-    uint32_t              nextAddToWrite;
-
     enum class pageOp_t : uint8_t
     {
         read,
         write
     };
+
+    StorageAccess&        _storageAccess;
+    bool                  _useFactoryPage;
+    std::vector<uint8_t>  _varTransferedArray = {};
+    std::vector<uint16_t> _eepromCache        = {};
+    uint32_t              _nextAddToWrite;
 
     writeStatus_t pageTransfer();
     bool          isVarTransfered(uint16_t address);
