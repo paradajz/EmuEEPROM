@@ -85,10 +85,11 @@ class EmuEEPROM
     pageStatus_t  pageStatus(page_t page);
 
     private:
-    StorageAccess&       storageAccess;
-    bool                 _useFactoryPage;
-    std::vector<uint8_t> varTransferedArray = {};
-    uint32_t             nextAddToWrite;
+    StorageAccess&        storageAccess;
+    bool                  _useFactoryPage;
+    std::vector<uint8_t>  varTransferedArray = {};
+    std::vector<uint16_t> _eepromCache       = {};
+    uint32_t              nextAddToWrite;
 
     enum class pageOp_t : uint8_t
     {

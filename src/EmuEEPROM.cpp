@@ -26,7 +26,19 @@ bool EmuEEPROM::init()
     if (!storageAccess.init())
         return false;
 
+    bool cache = true;
+
+    auto checkCacheAfterFormat = [&]() {
+        if (_useFactoryPage && (pageStatus(page_t::pageFactory) == pageStatus_t::valid))
+        {
+            //contents from the factory page have been copied to first page
+            //on each write, cache has been updated
+            cache = false;
+        }
+    };
+
     varTransferedArray.resize(storageAccess.pageSize() / 4, 0);
+    _eepromCache.resize(storageAccess.pageSize() / 4 - 1, 0xFFFF);
     nextAddToWrite = storageAccess.pageSize();
 
     auto page1Status = pageStatus(page_t::page1);
@@ -57,6 +69,8 @@ bool EmuEEPROM::init()
             //erase both pages and set first page as valid
             if (!format())
                 return false;
+
+            checkCacheAfterFormat();
         }
         break;
 
@@ -69,6 +83,9 @@ bool EmuEEPROM::init()
 
             if (pageTransfer() != writeStatus_t::ok)
                 return false;
+
+            //page has been transfered and with it, all contents have been cached
+            cache = false;
         }
         else if (page2Status == pageStatus_t::erased)
         {
@@ -85,6 +102,8 @@ bool EmuEEPROM::init()
             //invalid state
             if (!format())
                 return false;
+
+            checkCacheAfterFormat();
         }
         break;
 
@@ -94,6 +113,8 @@ bool EmuEEPROM::init()
             //invalid state
             if (!format())
                 return false;
+
+            checkCacheAfterFormat();
         }
         else if (page2Status == pageStatus_t::erased)
         {
@@ -109,13 +130,50 @@ bool EmuEEPROM::init()
 
             if (pageTransfer() != writeStatus_t::ok)
                 return false;
+
+            //page has been transfered and with it, all contents have been cached
+            cache = false;
         }
         break;
 
     default:
         if (!format())
             return false;
+
+        checkCacheAfterFormat();
         break;
+    }
+
+    if (cache)
+    {
+        page_t validPage;
+        std::fill(varTransferedArray.begin(), varTransferedArray.end(), 0);
+
+        if (!findValidPage(pageOp_t::write, validPage))
+            return false;
+
+        for (uint32_t i = storageAccess.pageSize() - 4; i >= 4; i -= 4)
+        {
+            uint32_t data;
+
+            if (storageAccess.read32(storageAccess.startAddress(validPage) + i, data))
+            {
+                if (data == 0xFFFFFFFF)
+                    continue;    //blank variable
+
+                uint16_t value   = data & 0xFFFF;
+                uint16_t address = data >> 16 & 0xFFFF;
+
+                if (isVarTransfered(address))
+                    continue;
+
+                //copy variable to cache
+                _eepromCache[address] = value;
+                markAsTransfered(address);
+            }
+        }
+
+        std::fill(varTransferedArray.begin(), varTransferedArray.end(), 0);
     }
 
     return true;
@@ -152,11 +210,23 @@ bool EmuEEPROM::format()
             return false;
     }
 
-    return storageAccess.erasePage(page_t::page2);
+    if (storageAccess.erasePage(page_t::page2))
+    {
+        std::fill(_eepromCache.begin(), _eepromCache.end(), 0xFFFF);
+        return true;
+    }
+
+    return false;
 }
 
 EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
 {
+    if (_eepromCache[address] != 0xFFFF)
+    {
+        data = _eepromCache[address];
+        return readStatus_t::ok;
+    }
+
     page_t validPage;
 
     if (!findValidPage(pageOp_t::read, validPage))
@@ -198,6 +268,8 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
                 /* Get content of Address-2 which is variable value */
                 if (!storageAccess.read16(pageEndAddress - 2, data))
                     return readStatus_t::readError;
+
+                _eepromCache[address] = data;
 
                 return readStatus_t::ok;
             }
@@ -320,6 +392,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
             return writeStatus_t::writeError;
 
         nextAddToWrite += 4;
+        _eepromCache[address] = data;
         return writeStatus_t::ok;
     }
     else
@@ -342,6 +415,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
 
                     nextAddToWrite = pageStartAddress + 4;
 
+                    _eepromCache[address] = data;
                     return writeStatus_t::ok;
                 }
                 else
