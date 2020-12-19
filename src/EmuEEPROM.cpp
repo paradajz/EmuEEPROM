@@ -28,15 +28,6 @@ bool EmuEEPROM::init()
 
     bool cache = true;
 
-    auto checkCacheAfterFormat = [&]() {
-        if (_useFactoryPage && (pageStatus(page_t::pageFactory) == pageStatus_t::valid))
-        {
-            //contents from the factory page have been copied to first page
-            //on each write, cache has been updated
-            cache = false;
-        }
-    };
-
     _varTransferedArray.resize(_storageAccess.pageSize() / 4, 0);
     _eepromCache.resize(_storageAccess.pageSize() / 4 - 1, 0xFFFF);
     _nextAddToWrite = _storageAccess.pageSize();
@@ -69,8 +60,6 @@ bool EmuEEPROM::init()
             //erase both pages and set first page as valid
             if (!format())
                 return false;
-
-            checkCacheAfterFormat();
         }
         break;
 
@@ -102,8 +91,6 @@ bool EmuEEPROM::init()
             //invalid state
             if (!format())
                 return false;
-
-            checkCacheAfterFormat();
         }
         break;
 
@@ -113,8 +100,6 @@ bool EmuEEPROM::init()
             //invalid state
             if (!format())
                 return false;
-
-            checkCacheAfterFormat();
         }
         else if (page2Status == pageStatus_t::erased)
         {
@@ -139,8 +124,6 @@ bool EmuEEPROM::init()
     default:
         if (!format())
             return false;
-
-        checkCacheAfterFormat();
         break;
     }
 
