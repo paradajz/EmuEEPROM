@@ -29,7 +29,7 @@ bool EmuEEPROM::init()
     bool cache = true;
 
     _varTransferedArray.resize(_storageAccess.pageSize() / 4, 0);
-    _eepromCache.resize(_storageAccess.pageSize() / 4 - 1, 0xFFFF);
+    _eepromCache.resize(_storageAccess.pageSize() / 2 - 1, 0xFFFF);
     _nextAddToWrite = _storageAccess.pageSize();
 
     auto page1Status = pageStatus(page_t::page1);
