@@ -102,4 +102,5 @@ class EmuEEPROM
     void          markAsTransfered(uint16_t address);
     bool          findValidPage(pageOp_t operation, page_t& page);
     writeStatus_t writeInternal(uint16_t address, uint16_t data);
+    bool          cache();
 };

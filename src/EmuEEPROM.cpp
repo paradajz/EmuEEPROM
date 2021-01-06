@@ -26,7 +26,7 @@ bool EmuEEPROM::init()
     if (!_storageAccess.init())
         return false;
 
-    bool cache = true;
+    bool doCache = true;
 
     _varTransferedArray.resize(_storageAccess.pageSize() / 4, 0);
     _eepromCache.resize(_storageAccess.pageSize() / 2 - 1, 0xFFFF);
@@ -60,6 +60,9 @@ bool EmuEEPROM::init()
             //erase both pages and set first page as valid
             if (!format())
                 return false;
+
+            //caching is done automatically after formatting if possible
+            doCache = false;
         }
         break;
 
@@ -74,7 +77,7 @@ bool EmuEEPROM::init()
                 return false;
 
             //page has been transfered and with it, all contents have been cached
-            cache = false;
+            doCache = false;
         }
         else if (page2Status == pageStatus_t::erased)
         {
@@ -91,6 +94,9 @@ bool EmuEEPROM::init()
             //invalid state
             if (!format())
                 return false;
+
+            //caching is done automatically after formatting if possible
+            doCache = false;
         }
         break;
 
@@ -117,47 +123,21 @@ bool EmuEEPROM::init()
                 return false;
 
             //page has been transfered and with it, all contents have been cached
-            cache = false;
+            doCache = false;
         }
         break;
 
     default:
         if (!format())
             return false;
+
+        //caching is done automatically after formatting if possible
+        doCache = false;
         break;
     }
 
-    if (cache)
-    {
-        page_t validPage;
-        std::fill(_varTransferedArray.begin(), _varTransferedArray.end(), 0);
-
-        if (!findValidPage(pageOp_t::write, validPage))
-            return false;
-
-        for (uint32_t i = _storageAccess.pageSize() - 4; i >= 4; i -= 4)
-        {
-            uint32_t data;
-
-            if (_storageAccess.read32(_storageAccess.startAddress(validPage) + i, data))
-            {
-                if (data == 0xFFFFFFFF)
-                    continue;    //blank variable
-
-                uint16_t value   = data & 0xFFFF;
-                uint16_t address = data >> 16 & 0xFFFF;
-
-                if (isVarTransfered(address))
-                    continue;
-
-                //copy variable to cache
-                _eepromCache[address] = value;
-                markAsTransfered(address);
-            }
-        }
-
-        std::fill(_varTransferedArray.begin(), _varTransferedArray.end(), 0);
-    }
+    if (doCache)
+        cache();
 
     return true;
 }
@@ -168,6 +148,12 @@ bool EmuEEPROM::format()
 
     if (!_storageAccess.erasePage(page_t::page1))
         return false;
+
+    if (!_storageAccess.erasePage(page_t::page2))
+        return false;
+
+    //clear out cache
+    std::fill(_eepromCache.begin(), _eepromCache.end(), 0xFFFF);
 
     //copy contents from factory page to page 1 if the page is in correct status
     if (_useFactoryPage && (pageStatus(page_t::pageFactory) == pageStatus_t::valid))
@@ -185,6 +171,9 @@ bool EmuEEPROM::format()
             if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page1) + i, data))
                 return false;
         }
+
+        if (!cache())
+            return false;
     }
     else
     {
@@ -193,13 +182,7 @@ bool EmuEEPROM::format()
             return false;
     }
 
-    if (_storageAccess.erasePage(page_t::page2))
-    {
-        std::fill(_eepromCache.begin(), _eepromCache.end(), 0xFFFF);
-        return true;
-    }
-
-    return false;
+    return true;
 }
 
 EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
@@ -549,4 +532,37 @@ void EmuEEPROM::markAsTransfered(uint16_t address)
     uint16_t varIndex   = address - 8 * arrayIndex;
 
     _varTransferedArray.at(arrayIndex) |= (1UL << varIndex);
+}
+
+bool EmuEEPROM::cache()
+{
+    page_t validPage;
+    std::fill(_varTransferedArray.begin(), _varTransferedArray.end(), 0);
+
+    if (!findValidPage(pageOp_t::write, validPage))
+        return false;
+
+    for (uint32_t i = _storageAccess.pageSize() - 4; i >= 4; i -= 4)
+    {
+        uint32_t data;
+
+        if (_storageAccess.read32(_storageAccess.startAddress(validPage) + i, data))
+        {
+            if (data == 0xFFFFFFFF)
+                continue;    //blank variable
+
+            uint16_t value   = data & 0xFFFF;
+            uint16_t address = data >> 16 & 0xFFFF;
+
+            if (isVarTransfered(address))
+                continue;
+
+            //copy variable to cache
+            _eepromCache[address] = value;
+            markAsTransfered(address);
+        }
+    }
+
+    std::fill(_varTransferedArray.begin(), _varTransferedArray.end(), 0);
+    return true;
 }
