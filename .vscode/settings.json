@@ -13,5 +13,14 @@
     "editor.renderWhitespace": "all",
     "C_Cpp.autoAddFileAssociations": false,
     "diffEditor.ignoreTrimWhitespace": false,
-    "git.detectSubmodules": false
+    "git.detectSubmodules": false,
+    "extensions.ignoreRecommendations": true,
+
+    "emeraldwalk.runonsave": {
+        "commands": [
+            {
+                "cmd": "cd src && make format && cd ../tests && make format"
+            }
+        ]
+    }
 }
