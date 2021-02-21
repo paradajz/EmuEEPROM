@@ -74,7 +74,11 @@ bool EmuEEPROM::init()
             _storageAccess.erasePage(page_t::page1);
 
             if (pageTransfer() != writeStatus_t::ok)
-                return false;
+            {
+                //error occured, try to format
+                if (!format())
+                    return false;
+            }
 
             //page has been transfered and with it, all contents have been cached
             doCache = false;
@@ -120,7 +124,11 @@ bool EmuEEPROM::init()
             _storageAccess.erasePage(page_t::page2);
 
             if (pageTransfer() != writeStatus_t::ok)
-                return false;
+            {
+                //error occured, try to format
+                if (!format())
+                    return false;
+            }
 
             //page has been transfered and with it, all contents have been cached
             doCache = false;
@@ -137,7 +145,11 @@ bool EmuEEPROM::init()
     }
 
     if (doCache)
-        cache();
+    {
+        //if caching fails for any reason, just format everything
+        if (!cache())
+            format();
+    }
 
     return true;
 }
@@ -187,6 +199,9 @@ bool EmuEEPROM::format()
 
 EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
 {
+    if (address >= maxAddress())
+        return readStatus_t::readError;
+
     if (_eepromCache[address] != 0xFFFF)
     {
         data = _eepromCache[address];
@@ -255,6 +270,9 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
 
 EmuEEPROM::writeStatus_t EmuEEPROM::write(uint32_t address, uint16_t data)
 {
+    if (address >= maxAddress())
+        return writeStatus_t::writeError;
+
     writeStatus_t status;
 
     /* Write the variable virtual address and value in the EEPROM */
@@ -446,6 +464,9 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
             uint16_t value   = data & 0xFFFF;
             uint16_t address = data >> 16 & 0xFFFF;
 
+            if (address >= maxAddress())
+                return writeStatus_t::writeError;
+
             if (isVarTransfered(address))
                 continue;
 
@@ -553,6 +574,9 @@ bool EmuEEPROM::cache()
 
             uint16_t value   = data & 0xFFFF;
             uint16_t address = data >> 16 & 0xFFFF;
+
+            if (address >= maxAddress())
+                return false;
 
             if (isVarTransfered(address))
                 continue;
