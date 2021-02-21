@@ -2,6 +2,7 @@
 #include "unity/Helpers.h"
 #include "EmuEEPROM.h"
 #include <string.h>
+#include <array>
 
 #define PAGE_SIZE (128)
 
@@ -28,49 +29,49 @@ namespace
         bool erasePage(EmuEEPROM::page_t page) override
         {
             if (page == EmuEEPROM::page_t::page1)
-                memset(pageArray, 0xFF, PAGE_SIZE);
+                std::fill(pageArray.begin(), pageArray.end() - PAGE_SIZE, 0xFF);
             else
-                memset(&pageArray[PAGE_SIZE], 0xFF, PAGE_SIZE);
+                std::fill(pageArray.begin() + PAGE_SIZE, pageArray.end(), 0xFF);
 
             return true;
         }
 
         bool write16(uint32_t address, uint16_t data) override
         {
-            pageArray[address + 0] = (data >> 0) & (uint16_t)0xFF;
-            pageArray[address + 1] = (data >> 8) & (uint16_t)0xFF;
+            pageArray.at(address + 0) = (data >> 0) & (uint16_t)0xFF;
+            pageArray.at(address + 1) = (data >> 8) & (uint16_t)0xFF;
 
             return true;
         }
 
         bool write32(uint32_t address, uint32_t data) override
         {
-            pageArray[address + 0] = (data >> 0) & (uint32_t)0xFF;
-            pageArray[address + 1] = (data >> 8) & (uint32_t)0xFF;
-            pageArray[address + 2] = (data >> 16) & (uint32_t)0xFF;
-            pageArray[address + 3] = (data >> 24) & (uint32_t)0xFF;
+            pageArray.at(address + 0) = (data >> 0) & (uint32_t)0xFF;
+            pageArray.at(address + 1) = (data >> 8) & (uint32_t)0xFF;
+            pageArray.at(address + 2) = (data >> 16) & (uint32_t)0xFF;
+            pageArray.at(address + 3) = (data >> 24) & (uint32_t)0xFF;
 
             return true;
         }
 
         bool read16(uint32_t address, uint16_t& data) override
         {
-            data = pageArray[address + 1];
+            data = pageArray.at(address + 1);
             data <<= 8;
-            data |= pageArray[address + 0];
+            data |= pageArray.at(address + 0);
 
             return true;
         }
 
         bool read32(uint32_t address, uint32_t& data) override
         {
-            data = pageArray[address + 3];
+            data = pageArray.at(address + 3);
             data <<= 8;
-            data |= pageArray[address + 2];
+            data |= pageArray.at(address + 2);
             data <<= 8;
-            data |= pageArray[address + 1];
+            data |= pageArray.at(address + 1);
             data <<= 8;
-            data |= pageArray[address + 0];
+            data |= pageArray.at(address + 0);
 
             return true;
         }
@@ -81,7 +82,7 @@ namespace
         }
 
         private:
-        uint8_t pageArray[PAGE_SIZE * 2];
+        std::array<uint8_t, PAGE_SIZE * 2> pageArray;
     };
 
     StorageMock storageMock;
