@@ -29,7 +29,7 @@ bool EmuEEPROM::init()
     bool doCache = true;
 
     _varTransferedArray.resize(_storageAccess.pageSize() / 4, 0);
-    _eepromCache.resize(_storageAccess.pageSize() / 2 - 1, 0xFFFF);
+    _eepromCache.resize(maxAddress(), 0xFFFF);
     _nextAddToWrite = _storageAccess.pageSize();
 
     auto page1Status = pageStatus(page_t::page1);
@@ -565,4 +565,9 @@ bool EmuEEPROM::cache()
 
     std::fill(_varTransferedArray.begin(), _varTransferedArray.end(), 0);
     return true;
+}
+
+const uint32_t EmuEEPROM::maxAddress() const
+{
+    return _storageAccess.pageSize() / 2 - 1;
 }

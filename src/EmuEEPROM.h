@@ -98,9 +98,10 @@ class EmuEEPROM
     std::vector<uint16_t> _eepromCache        = {};
     uint32_t              _nextAddToWrite;
 
-    bool          isVarTransfered(uint16_t address);
-    void          markAsTransfered(uint16_t address);
-    bool          findValidPage(pageOp_t operation, page_t& page);
-    writeStatus_t writeInternal(uint16_t address, uint16_t data);
-    bool          cache();
+    const uint32_t maxAddress() const;
+    bool           isVarTransfered(uint16_t address);
+    void           markAsTransfered(uint16_t address);
+    bool           findValidPage(pageOp_t operation, page_t& page);
+    writeStatus_t  writeInternal(uint16_t address, uint16_t data);
+    bool           cache();
 };
