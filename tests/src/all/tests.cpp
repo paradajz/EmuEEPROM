@@ -81,7 +81,11 @@ namespace
             return PAGE_SIZE;
         }
 
-        private:
+        void reset()
+        {
+            std::fill(pageArray.begin(), pageArray.end(), 0xFF);
+        }
+
         std::array<uint8_t, PAGE_SIZE * 2> pageArray;
     };
 
@@ -175,4 +179,31 @@ TEST_CASE(PageTransfer2)
         TEST_ASSERT(emuEEPROM.read(i, value) == EmuEEPROM::readStatus_t::ok);
         TEST_ASSERT(value == 1);
     }
+}
+
+TEST_CASE(OverFlow)
+{
+    uint32_t readData = 0;
+
+    //manually prepare flash pages
+    storageMock.reset();
+
+    //set page 1 to valid state and page 2 to erased
+    storageMock.write32(0, static_cast<uint32_t>(EmuEEPROM::pageStatus_t::valid));
+    storageMock.write32(PAGE_SIZE, static_cast<uint32_t>(EmuEEPROM::pageStatus_t::erased));
+
+    //now, write data with address being larger than the max page size
+
+    //value 0, address PAGE_SIZE + 1
+    //emulated storage writes value first (2 bytes) and then address (2 bytes)
+    //use raw address 4 - first four bytes are for page status
+    storageMock.write32(4, static_cast<uint32_t>(PAGE_SIZE + 1) << 16 | 0x0000);
+    storageMock.read32(4, readData);
+    TEST_ASSERT_EQUAL_UINT32(static_cast<uint32_t>(PAGE_SIZE + 1) << 16 | 0x0000, readData);
+
+    emuEEPROM.init();
+
+    //expect page1 to be formatted due to invalid data
+    storageMock.read32(4, readData);
+    TEST_ASSERT_EQUAL_UINT32(0xFFFFFFFF, readData);
 }
