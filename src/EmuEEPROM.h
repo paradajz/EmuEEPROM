@@ -78,12 +78,13 @@ class EmuEEPROM
         , _useFactoryPage(useFactoryPage)
     {}
 
-    bool          init();
-    readStatus_t  read(uint32_t address, uint16_t& data);
-    writeStatus_t write(uint32_t address, uint16_t data);
-    bool          format();
-    pageStatus_t  pageStatus(page_t page);
-    writeStatus_t pageTransfer();
+    bool           init();
+    readStatus_t   read(uint32_t address, uint16_t& data);
+    writeStatus_t  write(uint32_t address, uint16_t data);
+    bool           format();
+    pageStatus_t   pageStatus(page_t page);
+    writeStatus_t  pageTransfer();
+    const uint32_t maxAddress() const;
 
     private:
     enum class pageOp_t : uint8_t
@@ -98,10 +99,9 @@ class EmuEEPROM
     std::vector<uint16_t> _eepromCache        = {};
     uint32_t              _nextAddToWrite;
 
-    const uint32_t maxAddress() const;
-    bool           isVarTransfered(uint16_t address);
-    void           markAsTransfered(uint16_t address);
-    bool           findValidPage(pageOp_t operation, page_t& page);
-    writeStatus_t  writeInternal(uint16_t address, uint16_t data);
-    bool           cache();
+    bool          isVarTransfered(uint16_t address);
+    void          markAsTransfered(uint16_t address);
+    bool          findValidPage(pageOp_t operation, page_t& page);
+    writeStatus_t writeInternal(uint16_t address, uint16_t data);
+    bool          cache();
 };
