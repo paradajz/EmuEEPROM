@@ -183,7 +183,8 @@ TEST_CASE(PageTransfer2)
 
 TEST_CASE(OverFlow)
 {
-    uint32_t readData = 0;
+    uint32_t readData   = 0;
+    uint16_t readData16 = 0;
 
     //manually prepare flash pages
     storageMock.reset();
@@ -206,4 +207,11 @@ TEST_CASE(OverFlow)
     //expect page1 to be formatted due to invalid data
     storageMock.read32(4, readData);
     TEST_ASSERT_EQUAL_UINT32(0xFFFFFFFF, readData);
+
+    //attempt to write and read an address larger than max allowed (page size / 4 minus one address)
+    TEST_ASSERT(emuEEPROM.write((PAGE_SIZE / 4) - 1, 0) == EmuEEPROM::writeStatus_t::writeError);
+    TEST_ASSERT(emuEEPROM.write((PAGE_SIZE / 4) - 2, 0) == EmuEEPROM::writeStatus_t::ok);
+
+    TEST_ASSERT(emuEEPROM.read((PAGE_SIZE / 4) - 1, readData16) == EmuEEPROM::readStatus_t::readError);
+    TEST_ASSERT(emuEEPROM.read((PAGE_SIZE / 4) - 2, readData16) == EmuEEPROM::readStatus_t::ok);
 }
