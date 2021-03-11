@@ -28,7 +28,7 @@ bool EmuEEPROM::init()
 
     bool doCache = true;
 
-    _varTransferedArray.resize(_storageAccess.pageSize() / 4, 0);
+    _varTransferedArray.resize(maxAddress() / 8 + 1, 0);
     _eepromCache.resize(maxAddress(), 0xFFFF);
     _nextAddToWrite = _storageAccess.pageSize();
 
