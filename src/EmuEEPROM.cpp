@@ -42,14 +42,20 @@ bool EmuEEPROM::init()
         if (page2Status == pageStatus_t::valid)
         {
             //page 1 erased, page 2 valid
-            //erase page 1 - make sure the entire page is erased
+            //format page 1 properly
             _storageAccess.erasePage(page_t::page1);
+
+            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page1), static_cast<uint32_t>(pageStatus_t::formatted)))
+                return false;
         }
         else if (page2Status == pageStatus_t::receiving)
         {
             //page 1 erased, page 2 in receive state
-            //again, make sure entire page1 is erased
+            //again, format page 1 properly
             _storageAccess.erasePage(page_t::page1);
+
+            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page1), static_cast<uint32_t>(pageStatus_t::formatted)))
+                return false;
 
             //mark page2 as valid
             if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page2), static_cast<uint32_t>(pageStatus_t::valid)))
@@ -57,7 +63,7 @@ bool EmuEEPROM::init()
         }
         else
         {
-            //erase both pages and set first page as valid
+            //format both pages and set first page as valid
             if (!format())
                 return false;
 
@@ -89,6 +95,9 @@ bool EmuEEPROM::init()
             //erase page 2
             _storageAccess.erasePage(page_t::page2);
 
+            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page2), static_cast<uint32_t>(pageStatus_t::formatted)))
+                return false;
+
             //mark page 1 as valid
             if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page1), static_cast<uint32_t>(pageStatus_t::valid)))
                 return false;
@@ -114,8 +123,15 @@ bool EmuEEPROM::init()
         else if (page2Status == pageStatus_t::erased)
         {
             //page 1 valid, page 2 erased
-            //erase page 2 fully
+            //format page2
             _storageAccess.erasePage(page_t::page2);
+
+            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page2), static_cast<uint32_t>(pageStatus_t::formatted)))
+                return false;
+        }
+        else if (page2Status == pageStatus_t::formatted)
+        {
+            //nothing to do
         }
         else
         {
@@ -189,8 +205,11 @@ bool EmuEEPROM::format()
     }
     else
     {
-        //just set valid status to page1
+        //set valid status to page1
         if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page1), static_cast<uint32_t>(pageStatus_t::valid)))
+            return false;
+
+        if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page2), static_cast<uint32_t>(pageStatus_t::formatted)))
             return false;
     }
 
@@ -484,8 +503,11 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
         }
     }
 
-    /* Erase the old Page: Set old Page status to ERASED status */
+    //format old page
     _storageAccess.erasePage(oldPage);
+
+    if (!_storageAccess.write32(_storageAccess.startAddress(oldPage), static_cast<uint32_t>(pageStatus_t::formatted)))
+        return writeStatus_t::writeError;
 
     /* Set new Page status to VALID_PAGE status */
     if (!_storageAccess.write32(newPageAddress, static_cast<uint32_t>(pageStatus_t::valid)))
@@ -531,8 +553,11 @@ EmuEEPROM::pageStatus_t EmuEEPROM::pageStatus(page_t page)
         break;
 
     case static_cast<uint32_t>(EmuEEPROM::pageStatus_t::valid):
-    default:
         status = EmuEEPROM::pageStatus_t::valid;
+        break;
+
+    default:
+        status = EmuEEPROM::pageStatus_t::formatted;
         break;
     }
 

@@ -32,7 +32,8 @@ class EmuEEPROM
     {
         valid     = 0x00,          ///< Page containing valid data
         erased    = 0xFFFFFFFF,    ///< Page is empty
-        receiving = 0xEEEEEEEE     ///< Page is marked to receive data
+        receiving = 0xEEEEEEEE,    ///< Page is marked to receive data
+        formatted = 0xDDDDDDDD     ///< Page is prepared for use but currently unused
     };
 
     enum class readStatus_t : uint8_t

@@ -121,9 +121,9 @@ TEST_CASE(PageTransfer)
     uint16_t value;
     uint16_t writeValue;
 
-    //initially, first page is active, while second one is erased
+    //initially, first page is active, while second one is formatted
     TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page1) == EmuEEPROM::pageStatus_t::valid);
-    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page2) == EmuEEPROM::pageStatus_t::erased);
+    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page2) == EmuEEPROM::pageStatus_t::formatted);
 
     //write variable to the same address n times in order to fill the entire page
     //page transfer should occur after which new page will only have single variable (latest one)
@@ -136,16 +136,16 @@ TEST_CASE(PageTransfer)
     TEST_ASSERT(emuEEPROM.read(0, value) == EmuEEPROM::readStatus_t::ok);
     TEST_ASSERT(value == writeValue);
 
-    //verify that the second page is active and first one erased
+    //verify that the second page is active and first one formatted
     TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page2) == EmuEEPROM::pageStatus_t::valid);
-    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page1) == EmuEEPROM::pageStatus_t::erased);
+    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page1) == EmuEEPROM::pageStatus_t::formatted);
 }
 
 TEST_CASE(PageTransfer2)
 {
-    //initially, first page is active, while second one is erased
+    //initially, first page is active, while second one is formatted
     TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page1) == EmuEEPROM::pageStatus_t::valid);
-    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page2) == EmuEEPROM::pageStatus_t::erased);
+    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page2) == EmuEEPROM::pageStatus_t::formatted);
 
     //fill half of the page
     for (int i = 0; i < PAGE_SIZE / 4 / 2 - 1; i++)
@@ -169,7 +169,7 @@ TEST_CASE(PageTransfer2)
     }
 
     TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page2) == EmuEEPROM::pageStatus_t::valid);
-    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page1) == EmuEEPROM::pageStatus_t::erased);
+    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page1) == EmuEEPROM::pageStatus_t::formatted);
 
     //also verify that the memory contains only updated values
     for (int i = 0; i < PAGE_SIZE / 4 - 1; i++)
@@ -189,9 +189,9 @@ TEST_CASE(OverFlow)
     //manually prepare flash pages
     storageMock.reset();
 
-    //set page 1 to valid state and page 2 to erased
+    //set page 1 to valid state and page 2 to formatted
     storageMock.write32(0, static_cast<uint32_t>(EmuEEPROM::pageStatus_t::valid));
-    storageMock.write32(PAGE_SIZE, static_cast<uint32_t>(EmuEEPROM::pageStatus_t::erased));
+    storageMock.write32(PAGE_SIZE, static_cast<uint32_t>(EmuEEPROM::pageStatus_t::formatted));
 
     //now, write data with address being larger than the max page size
 
