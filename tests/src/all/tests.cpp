@@ -38,18 +38,32 @@ namespace
 
         bool write16(uint32_t address, uint16_t data) override
         {
-            pageArray.at(address + 0) = (data >> 0) & (uint16_t)0xFF;
-            pageArray.at(address + 1) = (data >> 8) & (uint16_t)0xFF;
+            //0->1 transition is not allowed
+            uint16_t currentData = 0;
+            read16(address, currentData);
+
+            if (data > currentData)
+                return false;
+
+            pageArray.at(address + 0) = (data >> 0) & static_cast<uint16_t>(0xFF);
+            pageArray.at(address + 1) = (data >> 8) & static_cast<uint16_t>(0xFF);
 
             return true;
         }
 
         bool write32(uint32_t address, uint32_t data) override
         {
-            pageArray.at(address + 0) = (data >> 0) & (uint32_t)0xFF;
-            pageArray.at(address + 1) = (data >> 8) & (uint32_t)0xFF;
-            pageArray.at(address + 2) = (data >> 16) & (uint32_t)0xFF;
-            pageArray.at(address + 3) = (data >> 24) & (uint32_t)0xFF;
+            //0->1 transition is not allowed
+            uint32_t currentData = 0;
+            read32(address, currentData);
+
+            if (data > currentData)
+                return false;
+
+            pageArray.at(address + 0) = (data >> 0) & static_cast<uint16_t>(0xFF);
+            pageArray.at(address + 1) = (data >> 8) & static_cast<uint16_t>(0xFF);
+            pageArray.at(address + 2) = (data >> 16) & static_cast<uint16_t>(0xFF);
+            pageArray.at(address + 3) = (data >> 24) & static_cast<uint16_t>(0xFF);
 
             return true;
         }
