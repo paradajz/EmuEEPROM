@@ -213,6 +213,8 @@ bool EmuEEPROM::format()
             return false;
     }
 
+    _nextAddToWrite = _storageAccess.pageSize();
+
     return true;
 }
 
