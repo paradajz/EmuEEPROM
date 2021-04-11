@@ -33,6 +33,8 @@ namespace
             else
                 std::fill(pageArray.begin() + PAGE_SIZE, pageArray.end(), 0xFF);
 
+            pageEraseCounter++;
+
             return true;
         }
 
@@ -101,6 +103,7 @@ namespace
         }
 
         std::array<uint8_t, PAGE_SIZE * 2> pageArray;
+        size_t                             pageEraseCounter = 0;
     };
 
     StorageMock storageMock;
@@ -111,8 +114,8 @@ TEST_SETUP()
 {
     storageMock.erasePage(EmuEEPROM::page_t::page1);
     storageMock.erasePage(EmuEEPROM::page_t::page2);
-
     TEST_ASSERT(emuEEPROM.init() == true);
+    storageMock.pageEraseCounter = 0;
 }
 
 TEST_CASE(Insert)
@@ -228,4 +231,14 @@ TEST_CASE(OverFlow)
 
     TEST_ASSERT(emuEEPROM.read((PAGE_SIZE / 4) - 1, readData16) == EmuEEPROM::readStatus_t::readError);
     TEST_ASSERT(emuEEPROM.read((PAGE_SIZE / 4) - 2, readData16) == EmuEEPROM::readStatus_t::ok);
+}
+
+TEST_CASE(PageErase)
+{
+    //at this point, emueeprom is prepared
+    TEST_ASSERT_EQUAL_UINT32(0, storageMock.pageEraseCounter);
+
+    //run init again and verify that no pages have been erased again
+    emuEEPROM.init();
+    TEST_ASSERT_EQUAL_UINT32(0, storageMock.pageEraseCounter);
 }
