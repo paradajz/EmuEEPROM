@@ -618,7 +618,7 @@ bool EmuEEPROM::cache()
     return true;
 }
 
-const uint32_t EmuEEPROM::maxAddress() const
+uint32_t EmuEEPROM::maxAddress() const
 {
     return (_storageAccess.pageSize() / 4) - 1;
 }

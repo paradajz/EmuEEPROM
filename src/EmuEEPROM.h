@@ -79,13 +79,13 @@ class EmuEEPROM
         , _useFactoryPage(useFactoryPage)
     {}
 
-    bool           init();
-    readStatus_t   read(uint32_t address, uint16_t& data);
-    writeStatus_t  write(uint32_t address, uint16_t data);
-    bool           format();
-    pageStatus_t   pageStatus(page_t page);
-    writeStatus_t  pageTransfer();
-    const uint32_t maxAddress() const;
+    bool          init();
+    readStatus_t  read(uint32_t address, uint16_t& data);
+    writeStatus_t write(uint32_t address, uint16_t data);
+    bool          format();
+    pageStatus_t  pageStatus(page_t page);
+    writeStatus_t pageTransfer();
+    uint32_t      maxAddress() const;
 
     private:
     enum class pageOp_t : uint8_t
