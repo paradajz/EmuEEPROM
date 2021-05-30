@@ -99,6 +99,7 @@ class EmuEEPROM
     std::vector<uint8_t>  _varTransferedArray = {};
     std::vector<uint16_t> _eepromCache        = {};
     uint32_t              _nextAddToWrite;
+    uint32_t              _maxAddress = 0;
 
     bool          isVarTransfered(uint16_t address);
     void          markAsTransfered(uint16_t address);

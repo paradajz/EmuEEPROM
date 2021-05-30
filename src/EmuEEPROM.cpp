@@ -28,6 +28,7 @@ bool EmuEEPROM::init()
 
     bool doCache = true;
 
+    _maxAddress = (_storageAccess.pageSize() / 4) - 1;
     _varTransferedArray.resize(maxAddress() / 8 + 1, 0);
     _eepromCache.resize(maxAddress(), 0xFFFF);
     _nextAddToWrite = _storageAccess.pageSize();
@@ -620,5 +621,5 @@ bool EmuEEPROM::cache()
 
 uint32_t EmuEEPROM::maxAddress() const
 {
-    return (_storageAccess.pageSize() / 4) - 1;
+    return _maxAddress;
 }
