@@ -81,6 +81,7 @@ class EmuEEPROM
 
     bool          init();
     readStatus_t  read(uint32_t address, uint16_t& data);
+    readStatus_t  readCached(uint32_t address, uint16_t& data);
     writeStatus_t write(uint32_t address, uint16_t data);
     bool          format();
     pageStatus_t  pageStatus(page_t page);
