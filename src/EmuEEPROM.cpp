@@ -28,10 +28,8 @@ bool EmuEEPROM::init()
 
     bool doCache = true;
 
-    _maxAddress = (_storageAccess.pageSize() / 4) - 1;
-    _varTransferedArray.resize(maxAddress() / 8 + 1, 0);
-    _eepromCache.resize(maxAddress(), 0xFFFF);
-    _nextAddToWrite = _storageAccess.pageSize();
+    _nextAddToWrite = EMU_EEPROM_PAGE_SIZE;
+    std::fill(_eepromCache.begin(), _eepromCache.end(), 0xFFFF);
 
     auto page1Status = pageStatus(page_t::page1);
     auto page2Status = pageStatus(page_t::page2);
@@ -187,7 +185,7 @@ bool EmuEEPROM::format()
     //copy contents from factory page to page 1 if the page is in correct status
     if (_useFactoryPage && (pageStatus(page_t::pageFactory) == pageStatus_t::valid))
     {
-        for (uint32_t i = 0; i < _storageAccess.pageSize(); i += 4)
+        for (uint32_t i = 0; i < EMU_EEPROM_PAGE_SIZE; i += 4)
         {
             uint32_t data;
 
@@ -214,7 +212,7 @@ bool EmuEEPROM::format()
             return false;
     }
 
-    _nextAddToWrite = _storageAccess.pageSize();
+    _nextAddToWrite = EMU_EEPROM_PAGE_SIZE;
 
     return true;
 }
@@ -239,7 +237,7 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
 
     //take into account 4-byte page header
     uint32_t startAddress     = _storageAccess.startAddress(validPage);
-    uint32_t pageSize         = _storageAccess.pageSize();
+    uint32_t pageSize         = EMU_EEPROM_PAGE_SIZE;
     uint32_t pageStartAddress = startAddress + 4;
     uint32_t pageEndAddress   = startAddress + pageSize - 2;
 
@@ -247,7 +245,7 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
         pageEndAddress = pageEndAddress - 4;
     };
 
-    if (_nextAddToWrite != _storageAccess.pageSize())
+    if (_nextAddToWrite != EMU_EEPROM_PAGE_SIZE)
     {
         //_nextAddToWrite contains next address to which new data will be written
         //subtracting this value by 2 results in having the last written address
@@ -386,7 +384,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
 
     //take into account 4-byte page header
     uint32_t startAddress     = _storageAccess.startAddress(validPage);
-    uint32_t pageSize         = _storageAccess.pageSize();
+    uint32_t pageSize         = EMU_EEPROM_PAGE_SIZE;
     uint32_t pageStartAddress = startAddress + 4;
     uint32_t pageEndAddress   = startAddress + pageSize - 2;
 
@@ -394,7 +392,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
         pageStartAddress += 4;
     };
 
-    if (_nextAddToWrite != _storageAccess.pageSize())
+    if (_nextAddToWrite != EMU_EEPROM_PAGE_SIZE)
     {
         if (_nextAddToWrite >= pageEndAddress)
             return writeStatus_t::pageFull;
@@ -479,11 +477,11 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
         return writeStatus_t::writeError;
 
     writeStatus_t eepromStatus;
-    _nextAddToWrite = _storageAccess.pageSize();
+    _nextAddToWrite = EMU_EEPROM_PAGE_SIZE;
 
     //move all variables from one page to another
     //start from last address
-    for (uint32_t i = _storageAccess.pageSize() - 4; i >= 4; i -= 4)
+    for (uint32_t i = EMU_EEPROM_PAGE_SIZE - 4; i >= 4; i -= 4)
     {
         uint32_t data;
 
@@ -600,7 +598,7 @@ bool EmuEEPROM::cache()
     if (!findValidPage(pageOp_t::write, validPage))
         return false;
 
-    for (uint32_t i = _storageAccess.pageSize() - 4; i >= 4; i -= 4)
+    for (uint32_t i = EMU_EEPROM_PAGE_SIZE - 4; i >= 4; i -= 4)
     {
         uint32_t data;
 

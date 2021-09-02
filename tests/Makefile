@@ -47,10 +47,6 @@ COMMON_FLAGS := \
 -g \
 -Wall
 
-#common defines
-DEFINES_COMMON := \
-UNITY_INCLUDE_CONFIG_H
-
 #c++ compiler only
 CPP_FLAGS := \
 -std=c++11

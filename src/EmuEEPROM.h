@@ -23,7 +23,13 @@
 
 #include <inttypes.h>
 #include <stdio.h>
-#include <vector>
+#include <array>
+
+#ifdef EMUEEPROM_INCLUDE_CONFIG
+#include "EmuEEPROMConfig.h"
+#else
+#define EMU_EEPROM_PAGE_SIZE 1024
+#endif
 
 class EmuEEPROM
 {
@@ -71,7 +77,6 @@ class EmuEEPROM
         virtual bool     write32(uint32_t address, uint32_t data) = 0;
         virtual bool     read16(uint32_t address, uint16_t& data) = 0;
         virtual bool     read32(uint32_t address, uint32_t& data) = 0;
-        virtual uint32_t pageSize()                               = 0;
     };
 
     EmuEEPROM(StorageAccess& storageAccess, bool useFactoryPage)
@@ -95,12 +100,12 @@ class EmuEEPROM
         write
     };
 
-    StorageAccess&        _storageAccess;
-    bool                  _useFactoryPage;
-    std::vector<uint8_t>  _varTransferedArray = {};
-    std::vector<uint16_t> _eepromCache        = {};
-    uint32_t              _nextAddToWrite;
-    uint32_t              _maxAddress = 0;
+    StorageAccess&                           _storageAccess;
+    static constexpr uint32_t                _maxAddress = (EMU_EEPROM_PAGE_SIZE / 4) - 1;
+    bool                                     _useFactoryPage;
+    std::array<uint8_t, _maxAddress / 8 + 1> _varTransferedArray = {};
+    std::array<uint16_t, _maxAddress>        _eepromCache        = {};
+    uint32_t                                 _nextAddToWrite;
 
     bool          isVarTransfered(uint16_t address);
     void          markAsTransfered(uint16_t address);

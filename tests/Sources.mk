@@ -7,6 +7,7 @@ modules/unity/src/unity.c
 #common include dirs
 INCLUDE_DIRS_COMMON := \
 -I"./" \
+-I"./src" \
 -I"./unity" \
 -I"../modules" \
 -I"../src"
