@@ -86,7 +86,6 @@ class EmuEEPROM
 
     bool          init();
     readStatus_t  read(uint32_t address, uint16_t& data);
-    readStatus_t  readCached(uint32_t address, uint16_t& data);
     writeStatus_t write(uint32_t address, uint16_t data);
     bool          format();
     pageStatus_t  pageStatus(page_t page);
@@ -104,12 +103,11 @@ class EmuEEPROM
     static constexpr uint32_t                _maxAddress = (EMU_EEPROM_PAGE_SIZE / 4) - 1;
     bool                                     _useFactoryPage;
     std::array<uint8_t, _maxAddress / 8 + 1> _varTransferedArray = {};
-    std::array<uint16_t, _maxAddress>        _eepromCache        = {};
     uint32_t                                 _nextAddToWrite;
 
     bool          isVarTransfered(uint16_t address);
     void          markAsTransfered(uint16_t address);
     bool          findValidPage(pageOp_t operation, page_t& page);
     writeStatus_t writeInternal(uint16_t address, uint16_t data);
-    bool          cache();
+    bool          verify();
 };

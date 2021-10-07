@@ -26,10 +26,7 @@ bool EmuEEPROM::init()
     if (!_storageAccess.init())
         return false;
 
-    bool doCache = true;
-
     _nextAddToWrite = EMU_EEPROM_PAGE_SIZE;
-    std::fill(_eepromCache.begin(), _eepromCache.end(), 0xFFFF);
 
     auto page1Status = pageStatus(page_t::page1);
     auto page2Status = pageStatus(page_t::page2);
@@ -65,9 +62,6 @@ bool EmuEEPROM::init()
             //format both pages and set first page as valid
             if (!format())
                 return false;
-
-            //caching is done automatically after formatting if possible
-            doCache = false;
         }
         break;
 
@@ -84,9 +78,6 @@ bool EmuEEPROM::init()
                 if (!format())
                     return false;
             }
-
-            //page has been transfered and with it, all contents have been cached
-            doCache = false;
         }
         else if (page2Status == pageStatus_t::erased)
         {
@@ -106,9 +97,6 @@ bool EmuEEPROM::init()
             //invalid state
             if (!format())
                 return false;
-
-            //caching is done automatically after formatting if possible
-            doCache = false;
         }
         break;
 
@@ -144,27 +132,19 @@ bool EmuEEPROM::init()
                 if (!format())
                     return false;
             }
-
-            //page has been transfered and with it, all contents have been cached
-            doCache = false;
         }
         break;
 
     default:
+    {
         if (!format())
             return false;
-
-        //caching is done automatically after formatting if possible
-        doCache = false;
-        break;
+    }
+    break;
     }
 
-    if (doCache)
-    {
-        //if caching fails for any reason, just format everything
-        if (!cache())
-            format();
-    }
+    if (!verify())
+        format();
 
     return true;
 }
@@ -178,9 +158,6 @@ bool EmuEEPROM::format()
 
     if (!_storageAccess.erasePage(page_t::page2))
         return false;
-
-    //clear out cache
-    std::fill(_eepromCache.begin(), _eepromCache.end(), 0xFFFF);
 
     //copy contents from factory page to page 1 if the page is in correct status
     if (_useFactoryPage && (pageStatus(page_t::pageFactory) == pageStatus_t::valid))
@@ -199,7 +176,7 @@ bool EmuEEPROM::format()
                 return false;
         }
 
-        if (!cache())
+        if (!verify())
             return false;
     }
     else
@@ -221,12 +198,6 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
 {
     if (address >= maxAddress())
         return readStatus_t::readError;
-
-    if (_eepromCache[address] != 0xFFFF)
-    {
-        data = _eepromCache[address];
-        return readStatus_t::ok;
-    }
 
     page_t validPage;
 
@@ -270,8 +241,6 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
                 if (!_storageAccess.read16(pageEndAddress - 2, data))
                     return readStatus_t::readError;
 
-                _eepromCache[address] = data;
-
                 return readStatus_t::ok;
             }
             else
@@ -286,15 +255,6 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
     }
 
     return status;
-}
-
-EmuEEPROM::readStatus_t EmuEEPROM::readCached(uint32_t address, uint16_t& data)
-{
-    if (address >= _maxAddress)
-        return readStatus_t::noVar;
-
-    data = _eepromCache[address];
-    return readStatus_t::ok;
 }
 
 EmuEEPROM::writeStatus_t EmuEEPROM::write(uint32_t address, uint16_t data)
@@ -405,7 +365,6 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
             return writeStatus_t::writeError;
 
         _nextAddToWrite += 4;
-        _eepromCache[address] = data;
         return writeStatus_t::ok;
     }
     else
@@ -428,7 +387,6 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
 
                     _nextAddToWrite = pageStartAddress + 4;
 
-                    _eepromCache[address] = data;
                     return writeStatus_t::ok;
                 }
                 else
@@ -590,7 +548,7 @@ void EmuEEPROM::markAsTransfered(uint16_t address)
     _varTransferedArray.at(arrayIndex) |= (1UL << varIndex);
 }
 
-bool EmuEEPROM::cache()
+bool EmuEEPROM::verify()
 {
     page_t validPage;
     std::fill(_varTransferedArray.begin(), _varTransferedArray.end(), 0);
@@ -607,7 +565,6 @@ bool EmuEEPROM::cache()
             if (data == 0xFFFFFFFF)
                 continue;    //blank variable
 
-            uint16_t value   = data & 0xFFFF;
             uint16_t address = data >> 16 & 0xFFFF;
 
             if (address >= maxAddress())
@@ -616,8 +573,6 @@ bool EmuEEPROM::cache()
             if (isVarTransfered(address))
                 continue;
 
-            //copy variable to cache
-            _eepromCache[address] = value;
             markAsTransfered(address);
         }
     }
