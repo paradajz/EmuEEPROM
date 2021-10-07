@@ -34,7 +34,7 @@ bool EmuEEPROM::init()
     auto page1Status = pageStatus(page_t::page1);
     auto page2Status = pageStatus(page_t::page2);
 
-    /* Check for invalid header states and repair if necessary */
+    //check for invalid header states and repair if necessary
     switch (page1Status)
     {
     case pageStatus_t::erased:
@@ -258,15 +258,15 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
     //check each active page address starting from end
     while (pageEndAddress > pageStartAddress)
     {
-        /* Get the current location content to be compared with virtual address */
+        //get the current location content to be compared with virtual address
         uint16_t addressValue = 0;
 
         if (_storageAccess.read16(pageEndAddress, addressValue))
         {
-            /* Compare the read address with the virtual address */
+            //compare the read address with the virtual address
             if (addressValue == address)
             {
-                /* Get content of Address-2 which is variable value */
+                //get content of Address-2 which is variable value
                 if (!_storageAccess.read16(pageEndAddress - 2, data))
                     return readStatus_t::readError;
 
@@ -304,7 +304,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::write(uint32_t address, uint16_t data)
 
     writeStatus_t status;
 
-    /* Write the variable virtual address and value in the EEPROM */
+    //rite the variable virtual address and value in the EEPROM
     status = writeInternal(address, data);
 
     if (status == writeStatus_t::pageFull)
@@ -400,7 +400,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
         if (!_storageAccess.write16(_nextAddToWrite, data))
             return writeStatus_t::writeError;
 
-        /* Set variable virtual address */
+        //set variable virtual address
         if (!_storageAccess.write16(_nextAddToWrite + 2, address))
             return writeStatus_t::writeError;
 
@@ -410,7 +410,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
     }
     else
     {
-        /* Check each active page address starting from begining */
+        //check each active page address starting from begining
         while (pageStartAddress < pageEndAddress)
         {
             uint32_t readData = 0;
@@ -422,7 +422,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
                     if (!_storageAccess.write16(pageStartAddress, data))
                         return writeStatus_t::writeError;
 
-                    /* Set variable virtual address */
+                    //set variable virtual address
                     if (!_storageAccess.write16(pageStartAddress + 2, address))
                         return writeStatus_t::writeError;
 
@@ -458,18 +458,18 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
 
     if (validPage == page_t::page2)
     {
-        /* New page address where variable will be moved to */
+        //new page address where variable will be moved to
         newPageAddress = _storageAccess.startAddress(page_t::page1);
 
-        /* Old page ID where variable will be taken from */
+        //old page ID where variable will be taken from
         oldPage = page_t::page2;
     }
     else if (validPage == page_t::page1)
     {
-        /* New page address  where variable will be moved to */
+        //new page address  where variable will be moved to
         newPageAddress = _storageAccess.startAddress(page_t::page2);
 
-        /* Old page ID where variable will be taken from */
+        //old page ID where variable will be taken from
         oldPage = page_t::page1;
     }
 
@@ -519,7 +519,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
     if (!_storageAccess.write32(_storageAccess.startAddress(oldPage), static_cast<uint32_t>(pageStatus_t::formatted)))
         return writeStatus_t::writeError;
 
-    /* Set new Page status to VALID_PAGE status */
+    //set new Page status to VALID_PAGE status
     if (!_storageAccess.write32(newPageAddress, static_cast<uint32_t>(pageStatus_t::valid)))
         return writeStatus_t::writeError;
 
