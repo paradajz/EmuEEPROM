@@ -143,9 +143,6 @@ bool EmuEEPROM::init()
     break;
     }
 
-    if (!verify())
-        format();
-
     return true;
 }
 
@@ -175,9 +172,6 @@ bool EmuEEPROM::format()
             if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page1) + i, data))
                 return false;
         }
-
-        if (!verify())
-            return false;
     }
     else
     {
@@ -196,9 +190,6 @@ bool EmuEEPROM::format()
 
 EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
 {
-    if (address >= maxAddress())
-        return readStatus_t::readError;
-
     page_t validPage;
 
     if (!findValidPage(pageOp_t::read, validPage))
@@ -259,9 +250,6 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
 
 EmuEEPROM::writeStatus_t EmuEEPROM::write(uint32_t address, uint16_t data)
 {
-    if (address >= maxAddress())
-        return writeStatus_t::writeError;
-
     writeStatus_t status;
 
     //rite the variable virtual address and value in the EEPROM
@@ -451,9 +439,6 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
             uint16_t value   = data & 0xFFFF;
             uint16_t address = data >> 16 & 0xFFFF;
 
-            if (address >= maxAddress())
-                return writeStatus_t::writeError;
-
             if (isVarTransfered(address))
                 continue;
 
@@ -532,56 +517,18 @@ EmuEEPROM::pageStatus_t EmuEEPROM::pageStatus(page_t page)
     return status;
 }
 
-bool EmuEEPROM::isVarTransfered(uint16_t address)
+bool EmuEEPROM::isVarTransfered(uint32_t address)
 {
-    uint16_t arrayIndex = address / 8;
-    uint16_t varIndex   = address - 8 * arrayIndex;
+    uint32_t arrayIndex = address / 8;
+    uint32_t varIndex   = address - 8 * arrayIndex;
 
     return (_varTransferedArray.at(arrayIndex) >> varIndex) & 0x01;
 }
 
-void EmuEEPROM::markAsTransfered(uint16_t address)
+void EmuEEPROM::markAsTransfered(uint32_t address)
 {
-    uint16_t arrayIndex = address / 8;
-    uint16_t varIndex   = address - 8 * arrayIndex;
+    uint32_t arrayIndex = address / 8;
+    uint32_t varIndex   = address - 8 * arrayIndex;
 
     _varTransferedArray.at(arrayIndex) |= (1UL << varIndex);
-}
-
-bool EmuEEPROM::verify()
-{
-    page_t validPage;
-    std::fill(_varTransferedArray.begin(), _varTransferedArray.end(), 0);
-
-    if (!findValidPage(pageOp_t::write, validPage))
-        return false;
-
-    for (uint32_t i = EMU_EEPROM_PAGE_SIZE - 4; i >= 4; i -= 4)
-    {
-        uint32_t data;
-
-        if (_storageAccess.read32(_storageAccess.startAddress(validPage) + i, data))
-        {
-            if (data == 0xFFFFFFFF)
-                continue;    //blank variable
-
-            uint16_t address = data >> 16 & 0xFFFF;
-
-            if (address >= maxAddress())
-                return false;
-
-            if (isVarTransfered(address))
-                continue;
-
-            markAsTransfered(address);
-        }
-    }
-
-    std::fill(_varTransferedArray.begin(), _varTransferedArray.end(), 0);
-    return true;
-}
-
-uint32_t EmuEEPROM::maxAddress() const
-{
-    return _maxAddress;
 }

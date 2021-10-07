@@ -191,41 +191,6 @@ TEST_CASE(PageTransfer2)
     }
 }
 
-TEST_CASE(OverFlow)
-{
-    uint32_t readData   = 0;
-    uint16_t readData16 = 0;
-
-    //manually prepare flash pages
-    storageMock.reset();
-
-    //set page 1 to valid state and page 2 to formatted
-    storageMock.write32(0, static_cast<uint32_t>(EmuEEPROM::pageStatus_t::valid));
-    storageMock.write32(EMU_EEPROM_PAGE_SIZE, static_cast<uint32_t>(EmuEEPROM::pageStatus_t::formatted));
-
-    //now, write data with address being larger than the max page size
-
-    //value 0, address EMU_EEPROM_PAGE_SIZE + 1
-    //emulated storage writes value first (2 bytes) and then address (2 bytes)
-    //use raw address 4 - first four bytes are for page status
-    storageMock.write32(4, static_cast<uint32_t>(EMU_EEPROM_PAGE_SIZE + 1) << 16 | 0x0000);
-    storageMock.read32(4, readData);
-    TEST_ASSERT_EQUAL_UINT32(static_cast<uint32_t>(EMU_EEPROM_PAGE_SIZE + 1) << 16 | 0x0000, readData);
-
-    emuEEPROM.init();
-
-    //expect page1 to be formatted due to invalid data
-    storageMock.read32(4, readData);
-    TEST_ASSERT_EQUAL_UINT32(0xFFFFFFFF, readData);
-
-    //attempt to write and read an address larger than max allowed (page size / 4 minus one address)
-    TEST_ASSERT(emuEEPROM.write((EMU_EEPROM_PAGE_SIZE / 4) - 1, 0) == EmuEEPROM::writeStatus_t::writeError);
-    TEST_ASSERT(emuEEPROM.write((EMU_EEPROM_PAGE_SIZE / 4) - 2, 0) == EmuEEPROM::writeStatus_t::ok);
-
-    TEST_ASSERT(emuEEPROM.read((EMU_EEPROM_PAGE_SIZE / 4) - 1, readData16) == EmuEEPROM::readStatus_t::readError);
-    TEST_ASSERT(emuEEPROM.read((EMU_EEPROM_PAGE_SIZE / 4) - 2, readData16) == EmuEEPROM::readStatus_t::ok);
-}
-
 TEST_CASE(PageErase)
 {
     //at this point, emueeprom is prepared

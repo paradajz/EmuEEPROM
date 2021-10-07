@@ -90,7 +90,6 @@ class EmuEEPROM
     bool          format();
     pageStatus_t  pageStatus(page_t page);
     writeStatus_t pageTransfer();
-    uint32_t      maxAddress() const;
 
     private:
     enum class pageOp_t : uint8_t
@@ -99,15 +98,14 @@ class EmuEEPROM
         write
     };
 
-    StorageAccess&                           _storageAccess;
-    static constexpr uint32_t                _maxAddress = (EMU_EEPROM_PAGE_SIZE / 4) - 1;
-    bool                                     _useFactoryPage;
-    std::array<uint8_t, _maxAddress / 8 + 1> _varTransferedArray = {};
-    uint32_t                                 _nextAddToWrite;
+    StorageAccess&                             _storageAccess;
+    bool                                       _useFactoryPage;
+    static constexpr uint32_t                  _maxAddresses       = (EMU_EEPROM_PAGE_SIZE / 4) - 1;
+    std::array<uint8_t, _maxAddresses / 8 + 1> _varTransferedArray = {};
+    uint32_t                                   _nextAddToWrite;
 
-    bool          isVarTransfered(uint16_t address);
-    void          markAsTransfered(uint16_t address);
+    bool          isVarTransfered(uint32_t address);
+    void          markAsTransfered(uint32_t address);
     bool          findValidPage(pageOp_t operation, page_t& page);
     writeStatus_t writeInternal(uint16_t address, uint16_t data);
-    bool          verify();
 };
