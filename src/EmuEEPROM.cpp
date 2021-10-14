@@ -26,7 +26,7 @@ bool EmuEEPROM::init()
     if (!_storageAccess.init())
         return false;
 
-    _nextAddToWrite = EMU_EEPROM_PAGE_SIZE;
+    _nextAddToWrite = 0;
 
     auto page1Status = pageStatus(page_t::page1);
     auto page2Status = pageStatus(page_t::page2);
@@ -41,7 +41,7 @@ bool EmuEEPROM::init()
             //format page 1 properly
             _storageAccess.erasePage(page_t::page1);
 
-            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page1), static_cast<uint32_t>(pageStatus_t::formatted)))
+            if (!write32(_storageAccess.startAddress(page_t::page1), static_cast<uint32_t>(pageStatus_t::formatted)))
                 return false;
         }
         else if (page2Status == pageStatus_t::receiving)
@@ -50,11 +50,11 @@ bool EmuEEPROM::init()
             //again, format page 1 properly
             _storageAccess.erasePage(page_t::page1);
 
-            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page1), static_cast<uint32_t>(pageStatus_t::formatted)))
+            if (!write32(_storageAccess.startAddress(page_t::page1), static_cast<uint32_t>(pageStatus_t::formatted)))
                 return false;
 
             //mark page2 as valid
-            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page2), static_cast<uint32_t>(pageStatus_t::valid)))
+            if (!write32(_storageAccess.startAddress(page_t::page2), static_cast<uint32_t>(pageStatus_t::valid)))
                 return false;
         }
         else
@@ -85,11 +85,11 @@ bool EmuEEPROM::init()
             //erase page 2
             _storageAccess.erasePage(page_t::page2);
 
-            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page2), static_cast<uint32_t>(pageStatus_t::formatted)))
+            if (!write32(_storageAccess.startAddress(page_t::page2), static_cast<uint32_t>(pageStatus_t::formatted)))
                 return false;
 
             //mark page 1 as valid
-            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page1), static_cast<uint32_t>(pageStatus_t::valid)))
+            if (!write32(_storageAccess.startAddress(page_t::page1), static_cast<uint32_t>(pageStatus_t::valid)))
                 return false;
         }
         else
@@ -113,7 +113,7 @@ bool EmuEEPROM::init()
             //format page2
             _storageAccess.erasePage(page_t::page2);
 
-            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page2), static_cast<uint32_t>(pageStatus_t::formatted)))
+            if (!write32(_storageAccess.startAddress(page_t::page2), static_cast<uint32_t>(pageStatus_t::formatted)))
                 return false;
         }
         else if (page2Status == pageStatus_t::formatted)
@@ -161,76 +161,100 @@ bool EmuEEPROM::format()
     {
         for (uint32_t i = 0; i < EMU_EEPROM_PAGE_SIZE; i += 4)
         {
-            uint32_t data;
-
-            if (!_storageAccess.read32(_storageAccess.startAddress(page_t::pageFactory) + i, data))
-                return false;
+            auto data = read32(_storageAccess.startAddress(page_t::pageFactory) + i);
 
             if (data == 0xFFFFFFFF)
                 break;    //empty block, no need to go further
 
-            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page1) + i, data))
+            if (!write32(_storageAccess.startAddress(page_t::page1) + i, data))
                 return false;
         }
     }
     else
     {
         //set valid status to page1
-        if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page1), static_cast<uint32_t>(pageStatus_t::valid)))
+        if (!write32(_storageAccess.startAddress(page_t::page1), static_cast<uint32_t>(pageStatus_t::valid)))
             return false;
 
-        if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page2), static_cast<uint32_t>(pageStatus_t::formatted)))
+        if (!write32(_storageAccess.startAddress(page_t::page2), static_cast<uint32_t>(pageStatus_t::formatted)))
             return false;
     }
 
-    _nextAddToWrite = EMU_EEPROM_PAGE_SIZE;
+    _nextAddToWrite = 0;
 
     return true;
 }
 
-EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
+EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& length, const uint16_t maxLength)
 {
+    if (index == 0xFFFFFFFF)
+        return readStatus_t::noIndex;
+
     page_t validPage;
 
     if (!findValidPage(pageOp_t::read, validPage))
         return readStatus_t::noPage;
 
-    readStatus_t status = readStatus_t::noVar;
+    readStatus_t status = readStatus_t::noIndex;
 
     //take into account 4-byte page header
-    uint32_t startAddress     = _storageAccess.startAddress(validPage);
-    uint32_t pageSize         = EMU_EEPROM_PAGE_SIZE;
-    uint32_t pageStartAddress = startAddress + 4;
-    uint32_t pageEndAddress   = startAddress + pageSize - 2;
+    const uint32_t startAddress     = _storageAccess.startAddress(validPage);
+    const uint32_t pageStartAddress = startAddress + 4;
+    uint32_t       readAddress      = startAddress + EMU_EEPROM_PAGE_SIZE;
 
-    auto next = [&pageEndAddress]() {
-        pageEndAddress = pageEndAddress - 4;
+    auto next = [&readAddress]() {
+        readAddress = readAddress - 4;
     };
 
-    if (_nextAddToWrite != EMU_EEPROM_PAGE_SIZE)
+    if (_nextAddToWrite)
     {
         //_nextAddToWrite contains next address to which new data will be written
-        //subtracting this value by 2 results in having the last written address
-        //this will speed up the finding of read address process since all unused
-        //addresses will be skipped
-        if (_nextAddToWrite >= 2)
-            pageEndAddress = _nextAddToWrite - 2;
+        //when reading, skip all addresses after that one to speed up the process
+        readAddress = _nextAddToWrite - 4;
     }
 
     //check each active page address starting from end
-    while (pageEndAddress > pageStartAddress)
+    while (readAddress > pageStartAddress)
     {
-        //get the current location content to be compared with virtual address
-        uint16_t addressValue = 0;
+        auto readValue = read32(readAddress);
 
-        if (_storageAccess.read16(pageEndAddress, addressValue))
+        if (readValue == _contentEndMarker)
         {
-            //compare the read address with the virtual address
-            if (addressValue == address)
+            next();
+            readValue = read32(readAddress);
+
+            if (readValue == index)
             {
-                //get content of Address-2 which is variable value
-                if (!_storageAccess.read16(pageEndAddress - 2, data))
-                    return readStatus_t::readError;
+                //read the data in following order:
+                //size (2 bytes)
+                //crc (2 bytes)
+                //content (size bytes)
+
+                readAddress -= 2;
+                length = read16(readAddress);
+
+                readAddress -= 2;
+                auto crcRetrieved = read16(readAddress);
+
+                readAddress--;
+
+                uint16_t dataCount = 0;
+                uint16_t crcActual = 0;
+
+                //make sure data is read in correct order
+                for (int i = paddingBytes(length) + length - 1; i >= 0; i--)
+                {
+                    auto value = read8(readAddress - i);
+
+                    crcActual         = xmodemCRCUpdate(crcActual, value);
+                    data[dataCount++] = value;
+
+                    if (dataCount >= maxLength)
+                        break;
+                }
+
+                if (crcActual != crcRetrieved)
+                    return readStatus_t::invalidCrc;
 
                 return readStatus_t::ok;
             }
@@ -248,20 +272,22 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
     return status;
 }
 
-EmuEEPROM::writeStatus_t EmuEEPROM::write(uint32_t address, uint16_t data)
+EmuEEPROM::writeStatus_t EmuEEPROM::write(const uint32_t index, const char* data, const uint16_t length)
 {
+    //no amount of page transfers is going to make this fit
+    if (entrySize(length) >= (EMU_EEPROM_PAGE_SIZE - sizeof(pageStatus_t) - sizeof(_contentEndMarker)))
+        return writeStatus_t::pageFull;
+
     writeStatus_t status;
 
-    //rite the variable virtual address and value in the EEPROM
-    status = writeInternal(address, data);
+    status = writeInternal(index, data, length);
 
     if (status == writeStatus_t::pageFull)
     {
         status = pageTransfer();
 
-        //write the variable again to a new page
         if (status == writeStatus_t::ok)
-            status = writeInternal(address, data);
+            status = writeInternal(index, data, length);
     }
 
     return status;
@@ -320,9 +346,9 @@ bool EmuEEPROM::findValidPage(pageOp_t operation, page_t& page)
     return true;
 }
 
-EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t data)
+EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint32_t index, const char* data, uint16_t length)
 {
-    if (address == 0xFFFF)
+    if (index == 0xFFFFFFFF)
         return writeStatus_t::writeError;
 
     page_t validPage;
@@ -331,62 +357,107 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
         return writeStatus_t::noPage;
 
     //take into account 4-byte page header
-    uint32_t startAddress     = _storageAccess.startAddress(validPage);
-    uint32_t pageSize         = EMU_EEPROM_PAGE_SIZE;
-    uint32_t pageStartAddress = startAddress + 4;
-    uint32_t pageEndAddress   = startAddress + pageSize - 2;
+    const uint32_t startAddress   = _storageAccess.startAddress(validPage);
+    const uint32_t pageEndAddress = startAddress + EMU_EEPROM_PAGE_SIZE;
+    uint32_t       writeAddress   = startAddress + sizeof(pageStatus_t);
 
-    auto next = [&pageStartAddress]() {
-        pageStartAddress += 4;
+    auto next = [&writeAddress]() {
+        writeAddress += 4;
     };
 
-    if (_nextAddToWrite != EMU_EEPROM_PAGE_SIZE)
+    auto write = [&]() {
+        //write the data in following order:
+        //content
+        //crc
+        //size (without added padding)
+        //index
+        //end marker
+
+        uint16_t crc = 0x0000;
+
+        if ((pageEndAddress - writeAddress) < entrySize(length))
+            return writeStatus_t::pageFull;
+
+        //content
+        for (uint16_t i = 0; i < length; i++)
+        {
+            if (!write8(writeAddress++, data[i]))
+                return writeStatus_t::writeError;
+
+            crc = xmodemCRCUpdate(crc, data[i]);
+        }
+
+        //padding
+        for (uint16_t i = 0; i < paddingBytes(length); i++)
+        {
+            if (!write8(writeAddress++, 0xFF))
+                return writeStatus_t::writeError;
+        }
+        //
+
+        //crc
+        if (!write16(writeAddress, crc))
+            return writeStatus_t::writeError;
+
+        writeAddress += 2;
+        //
+
+        //size
+        if (!write16(writeAddress, length))
+            return writeStatus_t::writeError;
+
+        writeAddress += 2;
+        //
+
+        //index
+        if (!write32(writeAddress, index))
+            return writeStatus_t::writeError;
+
+        writeAddress += 4;
+        //
+
+        //end marker
+        if (!write32(writeAddress, _contentEndMarker))
+            return writeStatus_t::writeError;
+
+        _nextAddToWrite = writeAddress + 4;
+        //
+
+        return writeStatus_t::ok;
+    };
+
+    if (_nextAddToWrite)
     {
         if (_nextAddToWrite >= pageEndAddress)
             return writeStatus_t::pageFull;
 
-        if (!_storageAccess.write16(_nextAddToWrite, data))
-            return writeStatus_t::writeError;
+        if ((_nextAddToWrite - writeAddress) < entrySize(length))
+            return writeStatus_t::pageFull;
 
-        //set variable virtual address
-        if (!_storageAccess.write16(_nextAddToWrite + 2, address))
-            return writeStatus_t::writeError;
+        writeAddress = _nextAddToWrite;
 
-        _nextAddToWrite += 4;
-        return writeStatus_t::ok;
+        return write();
     }
     else
     {
-        //check each active page address starting from begining
-        while (pageStartAddress < pageEndAddress)
+        //check each active page address starting from beginning
+        while (writeAddress < pageEndAddress)
         {
-            uint32_t readData = 0;
-
-            if (_storageAccess.read32(pageStartAddress, readData))
+            if (read32(writeAddress) == _contentEndMarker)
             {
-                if (readData == 0xFFFFFFFF)
-                {
-                    if (!_storageAccess.write16(pageStartAddress, data))
-                        return writeStatus_t::writeError;
-
-                    //set variable virtual address
-                    if (!_storageAccess.write16(pageStartAddress + 2, address))
-                        return writeStatus_t::writeError;
-
-                    _nextAddToWrite = pageStartAddress + 4;
-
-                    return writeStatus_t::ok;
-                }
-                else
-                {
-                    next();
-                }
+                next();
+                return write();
             }
             else
             {
                 next();
             }
         }
+
+        //no content end marker set - nothing is written yet
+        writeAddress = startAddress + sizeof(pageStatus_t);
+
+        return write();
     }
 
     return writeStatus_t::pageFull;
@@ -399,75 +470,119 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
     if (!findValidPage(pageOp_t::read, validPage))
         return writeStatus_t::noPage;
 
-    uint32_t newPageAddress = _storageAccess.startAddress(page_t::page1);
-    page_t   oldPage        = page_t::page1;
+    _nextAddToWrite = _storageAccess.startAddress(page_t::page1);
+    page_t oldPage  = page_t::page1;
 
     if (validPage == page_t::page2)
     {
-        //new page address where variable will be moved to
-        newPageAddress = _storageAccess.startAddress(page_t::page1);
+        //new page address where content will be moved to
+        _nextAddToWrite = _storageAccess.startAddress(page_t::page1);
 
-        //old page ID where variable will be taken from
+        //old page ID where content will be taken from
         oldPage = page_t::page2;
     }
     else if (validPage == page_t::page1)
     {
-        //new page address  where variable will be moved to
-        newPageAddress = _storageAccess.startAddress(page_t::page2);
+        //new page address where content will be moved to
+        _nextAddToWrite = _storageAccess.startAddress(page_t::page2);
 
-        //old page ID where variable will be taken from
+        //old page ID where content will be taken from
         oldPage = page_t::page1;
     }
 
-    if (!_storageAccess.write32(newPageAddress, static_cast<uint32_t>(pageStatus_t::receiving)))
+    if (!write32(_nextAddToWrite, static_cast<uint32_t>(pageStatus_t::receiving)))
         return writeStatus_t::writeError;
 
-    writeStatus_t eepromStatus;
-    _nextAddToWrite = EMU_EEPROM_PAGE_SIZE;
+    _nextAddToWrite += sizeof(pageStatus_t);
 
-    //move all variables from one page to another
+    if (!write32(_nextAddToWrite, _contentEndMarker))
+        return writeStatus_t::writeError;
+
+    _nextAddToWrite += 4;
+
+    //move all data from one page to another
     //start from last address
-    for (uint32_t i = EMU_EEPROM_PAGE_SIZE - 4; i >= 4; i -= 4)
+    for (uint32_t i = EMU_EEPROM_PAGE_SIZE - 4; i > 4; i -= 4)
     {
-        uint32_t data;
+        uint32_t address = _storageAccess.startAddress(oldPage) + i;
 
-        if (_storageAccess.read32(_storageAccess.startAddress(oldPage) + i, data))
+        auto readValue = read32(address);
+
+        if (readValue == _contentEndMarker)
         {
-            if (data == 0xFFFFFFFF)
-                continue;    //blank variable
+            address -= sizeof(_contentEndMarker);
+            auto index = read32(address);
 
-            uint16_t value   = data & 0xFFFF;
-            uint16_t address = data >> 16 & 0xFFFF;
-
-            if (isVarTransfered(address))
+            if (isIndexTransfered(index))
                 continue;
 
-            //move variable to new active page
-            eepromStatus = writeInternal(address, value);
+            uint16_t length = 0;
+            uint16_t crc    = 0;
 
-            if (eepromStatus != writeStatus_t::ok)
+            address -= sizeof(uint16_t);
+            length = read16(address);
+
+            address -= sizeof(uint16_t);
+            crc = read16(address);
+
+            address--;
+
+            //at this point we can start writing data to the new page
+            //content first
+
+            for (int dataIndex = paddingBytes(length) + length - 1; dataIndex >= 0; dataIndex--)
             {
-                return eepromStatus;
+                auto value = read8(address - dataIndex);
+
+                if (!write8(_nextAddToWrite++, value))
+                    return writeStatus_t::writeError;
             }
-            else
-            {
-                markAsTransfered(address);
-            }
+
+            //skip this block of content but make sure that next loop
+            //iteration reads the content end marker
+            i -= (entrySize(length) - sizeof(_contentEndMarker));
+
+            //crc
+            if (!write16(_nextAddToWrite, crc))
+                return writeStatus_t::writeError;
+
+            _nextAddToWrite += 2;
+
+            //size
+            if (!write16(_nextAddToWrite, length))
+                return writeStatus_t::writeError;
+
+            _nextAddToWrite += 2;
+
+            //index
+            if (!write32(_nextAddToWrite, index))
+                return writeStatus_t::writeError;
+
+            _nextAddToWrite += 4;
+
+            //content end marker
+            if (!write32(_nextAddToWrite, _contentEndMarker))
+                return writeStatus_t::writeError;
+
+            _nextAddToWrite += 4;
+
+            markAsTransfered(index);
         }
     }
 
     //format old page
     _storageAccess.erasePage(oldPage);
 
-    if (!_storageAccess.write32(_storageAccess.startAddress(oldPage), static_cast<uint32_t>(pageStatus_t::formatted)))
+    if (!write32(_storageAccess.startAddress(oldPage), static_cast<uint32_t>(pageStatus_t::formatted)))
         return writeStatus_t::writeError;
 
-    //set new Page status to VALID_PAGE status
-    if (!_storageAccess.write32(newPageAddress, static_cast<uint32_t>(pageStatus_t::valid)))
+    //set new page status to VALID_PAGE status
+    if (!write32(_storageAccess.startAddress(oldPage == page_t::page1 ? page_t::page2 : page_t::page1),
+                 static_cast<uint32_t>(pageStatus_t::valid)))
         return writeStatus_t::writeError;
 
     //reset transfered flags
-    std::fill(_varTransferedArray.begin(), _varTransferedArray.end(), 0);
+    std::fill(_indexTransferedArray.begin(), _indexTransferedArray.end(), 0);
 
     return writeStatus_t::ok;
 }
@@ -480,15 +595,15 @@ EmuEEPROM::pageStatus_t EmuEEPROM::pageStatus(page_t page)
     switch (page)
     {
     case page_t::page1:
-        _storageAccess.read32(_storageAccess.startAddress(page_t::page1), data);
+        data = read32(_storageAccess.startAddress(page_t::page1));
         break;
 
     case page_t::page2:
-        _storageAccess.read32(_storageAccess.startAddress(page_t::page2), data);
+        data = read32(_storageAccess.startAddress(page_t::page2));
         break;
 
     case page_t::pageFactory:
-        _storageAccess.read32(_storageAccess.startAddress(page_t::pageFactory), data);
+        data = read32(_storageAccess.startAddress(page_t::pageFactory));
         break;
 
     default:
@@ -517,18 +632,105 @@ EmuEEPROM::pageStatus_t EmuEEPROM::pageStatus(page_t page)
     return status;
 }
 
-bool EmuEEPROM::isVarTransfered(uint32_t address)
+bool EmuEEPROM::isIndexTransfered(uint32_t index)
 {
-    uint32_t arrayIndex = address / 8;
-    uint32_t varIndex   = address - 8 * arrayIndex;
+    uint32_t arrayIndex = index / 32;
+    uint32_t varIndex   = index - 32 * arrayIndex;
 
-    return (_varTransferedArray.at(arrayIndex) >> varIndex) & 0x01;
+    return (_indexTransferedArray.at(arrayIndex) >> varIndex) & 0x01;
 }
 
-void EmuEEPROM::markAsTransfered(uint32_t address)
+void EmuEEPROM::markAsTransfered(uint32_t index)
 {
-    uint32_t arrayIndex = address / 8;
-    uint32_t varIndex   = address - 8 * arrayIndex;
+    uint32_t arrayIndex = index / 32;
+    uint32_t varIndex   = index - 32 * arrayIndex;
 
-    _varTransferedArray.at(arrayIndex) |= (1UL << varIndex);
+    _indexTransferedArray.at(arrayIndex) |= (1UL << varIndex);
+}
+
+bool EmuEEPROM::write8(uint32_t address, uint8_t data)
+{
+    return _storageAccess.write(address, data);
+}
+
+bool EmuEEPROM::write16(uint32_t address, uint16_t data)
+{
+    for (size_t i = 0; i < sizeof(uint16_t); i++)
+    {
+        if (!_storageAccess.write(address + i, static_cast<uint8_t>((data) >> (8 * i) & 0xFF)))
+            return false;
+    }
+
+    return true;
+}
+
+bool EmuEEPROM::write32(uint32_t address, uint32_t data)
+{
+    for (size_t i = 0; i < sizeof(uint32_t); i++)
+    {
+        if (!_storageAccess.write(address + i, static_cast<uint8_t>((data) >> (8 * i) & 0xFF)))
+            return false;
+    }
+
+    return true;
+}
+
+uint8_t EmuEEPROM::read8(uint32_t address)
+{
+    return _storageAccess.read(address);
+}
+
+uint16_t EmuEEPROM::read16(uint32_t address)
+{
+    uint8_t  temp[2] = {};
+    uint16_t data    = 0;
+
+    for (size_t i = 0; i < 2; i++)
+        temp[i] = _storageAccess.read(address + i);
+
+    data = temp[1];
+    data <<= 8;
+    data |= temp[0];
+
+    return data;
+}
+
+uint32_t EmuEEPROM::read32(uint32_t address)
+{
+    uint8_t  temp[4] = {};
+    uint32_t data    = 0;
+
+    for (size_t i = 0; i < 4; i++)
+        temp[i] = _storageAccess.read(address + i);
+
+    data = temp[3];
+    data <<= 8;
+    data |= temp[2];
+    data <<= 8;
+    data |= temp[1];
+    data <<= 8;
+    data |= temp[0];
+
+    return data;
+}
+
+uint16_t EmuEEPROM::xmodemCRCUpdate(uint16_t crc, char data)
+{
+    //update existing crc
+
+    crc = crc ^ (static_cast<uint16_t>(data) << 8);
+
+    for (int i = 0; i < 8; i++)
+    {
+        if (crc & 0x8000)
+        {
+            crc = (crc << 1) ^ 0x1021;
+        }
+        else
+        {
+            crc <<= 1;
+        }
+    }
+
+    return crc;
 }

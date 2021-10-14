@@ -45,9 +45,11 @@ class EmuEEPROM
     enum class readStatus_t : uint8_t
     {
         ok,
-        noVar,
+        noIndex,
         noPage,
-        readError
+        bufferTooSmall,
+        readError,
+        invalidCrc
     };
 
     enum class writeStatus_t : uint8_t
@@ -70,13 +72,11 @@ class EmuEEPROM
         public:
         StorageAccess() {}
 
-        virtual bool     init()                                   = 0;
-        virtual uint32_t startAddress(page_t page)                = 0;
-        virtual bool     erasePage(page_t page)                   = 0;
-        virtual bool     write16(uint32_t address, uint16_t data) = 0;
-        virtual bool     write32(uint32_t address, uint32_t data) = 0;
-        virtual bool     read16(uint32_t address, uint16_t& data) = 0;
-        virtual bool     read32(uint32_t address, uint32_t& data) = 0;
+        virtual bool     init()                                = 0;
+        virtual uint32_t startAddress(page_t page)             = 0;
+        virtual bool     erasePage(page_t page)                = 0;
+        virtual bool     write(uint32_t address, uint8_t data) = 0;
+        virtual uint8_t  read(uint32_t address)                = 0;
     };
 
     EmuEEPROM(StorageAccess& storageAccess, bool useFactoryPage)
@@ -85,11 +85,27 @@ class EmuEEPROM
     {}
 
     bool          init();
-    readStatus_t  read(uint32_t address, uint16_t& data);
-    writeStatus_t write(uint32_t address, uint16_t data);
+    readStatus_t  read(uint32_t index, char* data, uint16_t& length, const uint16_t maxLength);
+    writeStatus_t write(const uint32_t index, const char* data, const uint16_t length);
     bool          format();
     pageStatus_t  pageStatus(page_t page);
     writeStatus_t pageTransfer();
+
+    constexpr uint8_t paddingBytes(uint16_t size)
+    {
+        return ((4 - size % 4) % 4);
+    }
+
+    constexpr uint32_t entrySize(uint16_t size = 1)
+    {
+        //single entry consists of:
+        //content (uint32_t padded)
+        //CRC (uint16_t)
+        //size of data (uint16_t)
+        //index (uint32_t)
+        //content end marker (uint32_t)
+        return size + paddingBytes(size) + sizeof(uint16_t) + sizeof(uint16_t) + sizeof(uint32_t) + sizeof(uint32_t);
+    }
 
     private:
     enum class pageOp_t : uint8_t
@@ -98,14 +114,24 @@ class EmuEEPROM
         write
     };
 
-    StorageAccess&                             _storageAccess;
-    bool                                       _useFactoryPage;
-    static constexpr uint32_t                  _maxAddresses       = (EMU_EEPROM_PAGE_SIZE / 4) - 1;
-    std::array<uint8_t, _maxAddresses / 8 + 1> _varTransferedArray = {};
-    uint32_t                                   _nextAddToWrite;
+    StorageAccess&            _storageAccess;
+    const bool                _useFactoryPage;
+    static constexpr uint32_t _contentEndMarker = 0x00;
+    uint32_t                  _nextAddToWrite   = 0;
 
-    bool          isVarTransfered(uint32_t address);
-    void          markAsTransfered(uint32_t address);
+    //first four bytes are reserved for page status, and next four for first (blank) content marker
+    static constexpr uint32_t                                            _maxIndexes           = 0xFFFF - 1;
+    std::array<uint32_t, (_maxIndexes / 32) + ((_maxIndexes % 32) != 0)> _indexTransferedArray = {};
+
+    bool          isIndexTransfered(uint32_t index);
+    void          markAsTransfered(uint32_t index);
     bool          findValidPage(pageOp_t operation, page_t& page);
-    writeStatus_t writeInternal(uint16_t address, uint16_t data);
+    writeStatus_t writeInternal(uint32_t index, const char* data, uint16_t length);
+    bool          write8(uint32_t address, uint8_t data);
+    bool          write16(uint32_t address, uint16_t data);
+    bool          write32(uint32_t address, uint32_t data);
+    uint8_t       read8(uint32_t address);
+    uint16_t      read16(uint32_t address);
+    uint32_t      read32(uint32_t address);
+    uint16_t      xmodemCRCUpdate(uint16_t crc, char data);
 };
