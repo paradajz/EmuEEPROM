@@ -49,7 +49,7 @@ COMMON_FLAGS := \
 
 #c++ compiler only
 CPP_FLAGS := \
--std=c++11
+-std=c++17
 
 #c compiler only
 C_FLAGS := \
