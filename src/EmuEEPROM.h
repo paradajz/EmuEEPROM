@@ -90,6 +90,7 @@ class EmuEEPROM
     bool          format();
     pageStatus_t  pageStatus(page_t page);
     writeStatus_t pageTransfer();
+    bool          indexExists(uint32_t index);
 
     constexpr uint8_t paddingBytes(uint16_t size)
     {

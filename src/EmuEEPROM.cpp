@@ -734,3 +734,57 @@ uint16_t EmuEEPROM::xmodemCRCUpdate(uint16_t crc, char data)
 
     return crc;
 }
+
+bool EmuEEPROM::indexExists(uint32_t index)
+{
+    if (index == 0xFFFFFFFF)
+        return false;
+
+    page_t validPage;
+
+    if (!findValidPage(pageOp_t::read, validPage))
+        return false;
+
+    //take into account 4-byte page header
+    const uint32_t startAddress     = _storageAccess.startAddress(validPage);
+    const uint32_t pageStartAddress = startAddress + 4;
+    uint32_t       readAddress      = startAddress + EMU_EEPROM_PAGE_SIZE;
+
+    auto next = [&readAddress]() {
+        readAddress = readAddress - 4;
+    };
+
+    if (_nextAddToWrite)
+    {
+        //_nextAddToWrite contains next address to which new data will be written
+        //when reading, skip all addresses after that one to speed up the process
+        readAddress = _nextAddToWrite - 4;
+    }
+
+    //check each active page address starting from end
+    while (readAddress > pageStartAddress)
+    {
+        auto readValue = read32(readAddress);
+
+        if (readValue == _contentEndMarker)
+        {
+            next();
+            readValue = read32(readAddress);
+
+            if (readValue == index)
+            {
+                return true;
+            }
+            else
+            {
+                next();
+            }
+        }
+        else
+        {
+            next();
+        }
+    }
+
+    return false;
+}

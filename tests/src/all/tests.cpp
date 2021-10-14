@@ -235,3 +235,35 @@ TEST_CASE(DataPersistentAfterInit)
     TEST_ASSERT(text == retrievedString);
     memset(readBuffer, 0x00, readBufferSize);
 }
+
+TEST_CASE(IndexExistsAPI)
+{
+    //write few indexes and verify that indexExists API returns correct response
+    struct entry_t
+    {
+        uint32_t    index = 0;
+        std::string text  = "";
+    };
+
+    std::vector<entry_t> entry = {
+        {
+            0x1234,
+            "string 1",
+        },
+        {
+            0x5678,
+            "string 2",
+        },
+        {
+            0x9ABC,
+            "string 3",
+        }
+    };
+
+    for (size_t i = 0; i < entry.size(); i++)
+    {
+        TEST_ASSERT(emuEEPROM.indexExists(entry.at(i).index) == false);
+        TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(entry.at(i).index, entry.at(i).text.c_str(), entry.at(i).text.size()));
+        TEST_ASSERT(emuEEPROM.indexExists(entry.at(i).index) == true);
+    }
+}
