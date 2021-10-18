@@ -131,18 +131,17 @@ TEST_CASE(Insert)
         }
     };
 
-    constexpr size_t readBufferSize             = 100;
-    char             readBuffer[readBufferSize] = {};
-    uint16_t         readLength                 = 0;
+    char     readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
+    uint16_t readLength                       = 0;
 
     for (size_t i = 0; i < entry.size(); i++)
     {
         TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(entry.at(i).index, entry.at(i).text.c_str(), entry.at(i).text.size()));
-        TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::ok, emuEEPROM.read(entry.at(i).index, readBuffer, readLength, entry.at(i).text.size()));
+        TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::ok, emuEEPROM.read(entry.at(i).index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 
         std::string retrievedString = readBuffer;
         TEST_ASSERT(entry.at(i).text == retrievedString);
-        memset(readBuffer, 0x00, readBufferSize);
+        memset(readBuffer, 0x00, EMU_EEPROM_PAGE_SIZE);
     }
 
     // change the strings, but leave the same indexes
@@ -155,11 +154,11 @@ TEST_CASE(Insert)
     for (size_t i = 0; i < entry.size(); i++)
     {
         TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(entry.at(i).index, entry.at(i).text.c_str(), entry.at(i).text.size()));
-        TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::ok, emuEEPROM.read(entry.at(i).index, readBuffer, readLength, entry.at(i).text.size()));
+        TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::ok, emuEEPROM.read(entry.at(i).index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 
         std::string retrievedString = readBuffer;
         TEST_ASSERT(entry.at(i).text == retrievedString);
-        memset(readBuffer, 0x00, readBufferSize);
+        memset(readBuffer, 0x00, EMU_EEPROM_PAGE_SIZE);
     }
 
     // make sure data which isn't written throws noIndex error
@@ -169,17 +168,16 @@ TEST_CASE(Insert)
 
 TEST_CASE(ContentTooLarge)
 {
-    const uint32_t   index                      = 0x42FC;
-    constexpr size_t readBufferSize             = 100;
-    char             readBuffer[readBufferSize] = {};
-    uint16_t         readLength                 = 0;
-    std::string      text;
+    const uint32_t index                            = 0x42FC;
+    char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
+    uint16_t       readLength                       = 0;
+    std::string    text;
 
     for (size_t i = 0; i < EMU_EEPROM_PAGE_SIZE; i++)
         text += "A";
 
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::pageFull, emuEEPROM.write(index, text.c_str(), text.size()));
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::noIndex, emuEEPROM.read(index, readBuffer, readLength, text.size()));
+    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::pageFull, emuEEPROM.write(index, text.c_str(), EMU_EEPROM_PAGE_SIZE));
+    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::noIndex, emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 }
 
 TEST_CASE(InvalidPages)
@@ -188,52 +186,49 @@ TEST_CASE(InvalidPages)
     storageMock.pageArray.at(0)                    = 0xAA;
     storageMock.pageArray.at(EMU_EEPROM_PAGE_SIZE) = 0xAA;
 
-    const uint32_t   index                      = 0x01;
-    constexpr size_t readBufferSize             = 100;
-    char             readBuffer[readBufferSize] = {};
-    uint16_t         readLength                 = 0;
-    std::string      text                       = "this is a string";
+    const uint32_t index                            = 0x01;
+    char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
+    uint16_t       readLength                       = 0;
+    std::string    text                             = "this is a string";
 
     TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::noPage, emuEEPROM.write(index, text.c_str(), text.size()));
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::noPage, emuEEPROM.read(index, readBuffer, readLength, text.size()));
+    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::noPage, emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 }
 
 TEST_CASE(InvalidIndex)
 {
-    const uint32_t   index                      = 0xFFFFFFFF;
-    constexpr size_t readBufferSize             = 100;
-    char             readBuffer[readBufferSize] = {};
-    uint16_t         readLength                 = 0;
-    std::string      text                       = "this is a string";
+    const uint32_t index                            = 0xFFFFFFFF;
+    char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
+    uint16_t       readLength                       = 0;
+    std::string    text                             = "this is a string";
 
     TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::writeError, emuEEPROM.write(index, text.c_str(), text.size()));
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::noIndex, emuEEPROM.read(index, readBuffer, readLength, text.size()));
+    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::noIndex, emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 }
 
 TEST_CASE(DataPersistentAfterInit)
 {
-    const uint32_t   index                      = 0xABF4;
-    constexpr size_t readBufferSize             = 100;
-    char             readBuffer[readBufferSize] = {};
-    uint16_t         readLength                 = 0;
-    std::string      text                       = "DataPersistentAfterInit";
+    const uint32_t index                            = 0xABF4;
+    char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
+    uint16_t       readLength                       = 0;
+    std::string    text                             = "DataPersistentAfterInit";
 
     // insert data, verify its contents, reinit the module and verify it is still present
 
     TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(index, text.c_str(), text.size()));
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::ok, emuEEPROM.read(index, readBuffer, readLength, text.size()));
+    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::ok, emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 
     std::string retrievedString = readBuffer;
     TEST_ASSERT(text == retrievedString);
-    memset(readBuffer, 0x00, readBufferSize);
+    memset(readBuffer, 0x00, EMU_EEPROM_PAGE_SIZE);
 
     emuEEPROM.init();
 
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::ok, emuEEPROM.read(index, readBuffer, readLength, text.size()));
+    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::ok, emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 
     retrievedString = readBuffer;
     TEST_ASSERT(text == retrievedString);
-    memset(readBuffer, 0x00, readBufferSize);
+    memset(readBuffer, 0x00, EMU_EEPROM_PAGE_SIZE);
 }
 
 TEST_CASE(IndexExistsAPI)
