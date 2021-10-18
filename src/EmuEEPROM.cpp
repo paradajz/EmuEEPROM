@@ -249,6 +249,10 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& le
                     crcActual         = xmodemCRCUpdate(crcActual, value);
                     data[dataCount++] = value;
 
+                    // don't calculate crc for padding bytes
+                    if (dataCount <= length)
+                        crcActual = xmodemCRCUpdate(crcActual, value);
+
                     if (dataCount >= maxLength)
                         break;
                 }
