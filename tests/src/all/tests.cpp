@@ -41,7 +41,7 @@ namespace
 
         bool write(uint32_t address, uint8_t data) override
         {
-            //0->1 transition is not allowed
+            // 0->1 transition is not allowed
             uint8_t currentData = read(address);
 
             if (data > currentData)
@@ -80,24 +80,24 @@ TEST_SETUP()
 
 TEST_CASE(FlashFormat)
 {
-    //fill flash with junk, run init and verify that all content is cleared
+    // fill flash with junk, run init and verify that all content is cleared
     for (int i = 0; i < storageMock.pageArray.size(); i++)
         storageMock.pageArray.at(i) = i;
 
     emuEEPROM.init();
 
-    //expect the following:
-    //first 4 bytes: status
-    //rest: 0xFF
+    // expect the following:
+    // first 4 bytes: status
+    // rest: 0xFF
 
-    //status for first page should be 0x00
+    // status for first page should be 0x00
     for (int i = 0; i < 4; i++)
         TEST_ASSERT_EQUAL_UINT32(0x00, storageMock.pageArray.at(i));
 
     for (int i = 4; i < EMU_EEPROM_PAGE_SIZE; i++)
         TEST_ASSERT_EQUAL_UINT32(0xFF, storageMock.pageArray.at(i));
 
-    //status for second page should be 0xFFFFEEEE
+    // status for second page should be 0xFFFFEEEE
     for (int i = EMU_EEPROM_PAGE_SIZE; i < EMU_EEPROM_PAGE_SIZE + 2; i++)
         TEST_ASSERT_EQUAL_UINT32(0xEE, storageMock.pageArray.at(i));
 
@@ -145,8 +145,8 @@ TEST_CASE(Insert)
         memset(readBuffer, 0x00, readBufferSize);
     }
 
-    //change the strings, but leave the same indexes
-    //write new data and verify that new strings are read
+    // change the strings, but leave the same indexes
+    // write new data and verify that new strings are read
 
     entry.at(0).text = "Greetings!";
     entry.at(1).text = "This greeting is brought to you by GreetCo LLC";
@@ -162,7 +162,7 @@ TEST_CASE(Insert)
         memset(readBuffer, 0x00, readBufferSize);
     }
 
-    //make sure data which isn't written throws noIndex error
+    // make sure data which isn't written throws noIndex error
     const uint32_t index = 0xBEEF;
     TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::noIndex, emuEEPROM.read(index, readBuffer, readLength, readLength));
 }
@@ -184,7 +184,7 @@ TEST_CASE(ContentTooLarge)
 
 TEST_CASE(InvalidPages)
 {
-    //make sure both pages are in invalid state
+    // make sure both pages are in invalid state
     storageMock.pageArray.at(0)                    = 0xAA;
     storageMock.pageArray.at(EMU_EEPROM_PAGE_SIZE) = 0xAA;
 
@@ -218,7 +218,7 @@ TEST_CASE(DataPersistentAfterInit)
     uint16_t         readLength                 = 0;
     std::string      text                       = "DataPersistentAfterInit";
 
-    //insert data, verify its contents, reinit the module and verify it is still present
+    // insert data, verify its contents, reinit the module and verify it is still present
 
     TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(index, text.c_str(), text.size()));
     TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::ok, emuEEPROM.read(index, readBuffer, readLength, text.size()));
@@ -238,7 +238,7 @@ TEST_CASE(DataPersistentAfterInit)
 
 TEST_CASE(IndexExistsAPI)
 {
-    //write few indexes and verify that indexExists API returns correct response
+    // write few indexes and verify that indexExists API returns correct response
     struct entry_t
     {
         uint32_t    index = 0;

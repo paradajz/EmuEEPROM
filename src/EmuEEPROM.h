@@ -99,12 +99,12 @@ class EmuEEPROM
 
     constexpr uint32_t entrySize(uint16_t size = 1)
     {
-        //single entry consists of:
-        //content (uint32_t padded)
-        //CRC (uint16_t)
-        //size of data (uint16_t)
-        //index (uint32_t)
-        //content end marker (uint32_t)
+        // single entry consists of:
+        // content (uint32_t padded)
+        // CRC (uint16_t)
+        // size of data (uint16_t)
+        // index (uint32_t)
+        // content end marker (uint32_t)
         return size + paddingBytes(size) + sizeof(uint16_t) + sizeof(uint16_t) + sizeof(uint32_t) + sizeof(uint32_t);
     }
 
@@ -120,7 +120,7 @@ class EmuEEPROM
     static constexpr uint32_t _contentEndMarker = 0x00;
     uint32_t                  _nextAddToWrite   = 0;
 
-    //first four bytes are reserved for page status, and next four for first (blank) content marker
+    // first four bytes are reserved for page status, and next four for first (blank) content marker
     static constexpr uint32_t                                            _maxIndexes           = 0xFFFF - 1;
     std::array<uint32_t, (_maxIndexes / 32) + ((_maxIndexes % 32) != 0)> _indexTransferedArray = {};
 
