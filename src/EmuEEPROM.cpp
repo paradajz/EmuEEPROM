@@ -19,6 +19,7 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#include <string.h>
 #include "EmuEEPROM.h"
 
 bool EmuEEPROM::init()
@@ -196,6 +197,8 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& le
         return readStatus_t::noPage;
 
     readStatus_t status = readStatus_t::noIndex;
+
+    memset(data, 0x00, maxLength);
 
     // take into account 4-byte page header
     const uint32_t startAddress     = _storageAccess.startAddress(validPage);
