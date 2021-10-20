@@ -236,6 +236,10 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& le
                 readAddress -= 2;
                 length = read16(readAddress);
 
+                // use extra character for termination
+                if ((length + 1) >= maxLength)
+                    return readStatus_t::bufferTooSmall;
+
                 readAddress -= 2;
                 auto crcRetrieved = read16(readAddress);
 
@@ -262,6 +266,8 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& le
 
                 if (crcActual != crcRetrieved)
                     return readStatus_t::invalidCrc;
+
+                data[length] = '\0';
 
                 return readStatus_t::ok;
             }
