@@ -136,7 +136,7 @@ TEST_CASE(Insert)
 
     for (size_t i = 0; i < entry.size(); i++)
     {
-        TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(entry.at(i).index, entry.at(i).text.c_str(), entry.at(i).text.size()));
+        TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(entry.at(i).index, entry.at(i).text.c_str()));
         TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::ok, emuEEPROM.read(entry.at(i).index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 
         std::string retrievedString = readBuffer;
@@ -153,7 +153,7 @@ TEST_CASE(Insert)
 
     for (size_t i = 0; i < entry.size(); i++)
     {
-        TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(entry.at(i).index, entry.at(i).text.c_str(), entry.at(i).text.size()));
+        TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(entry.at(i).index, entry.at(i).text.c_str()));
         TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::ok, emuEEPROM.read(entry.at(i).index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 
         std::string retrievedString = readBuffer;
@@ -176,7 +176,7 @@ TEST_CASE(ContentTooLarge)
     for (size_t i = 0; i < EMU_EEPROM_PAGE_SIZE; i++)
         text += "A";
 
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::pageFull, emuEEPROM.write(index, text.c_str(), EMU_EEPROM_PAGE_SIZE));
+    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::pageFull, emuEEPROM.write(index, text.c_str()));
     TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::noIndex, emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 }
 
@@ -191,7 +191,7 @@ TEST_CASE(InvalidPages)
     uint16_t       readLength                       = 0;
     std::string    text                             = "this is a string";
 
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::noPage, emuEEPROM.write(index, text.c_str(), text.size()));
+    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::noPage, emuEEPROM.write(index, text.c_str()));
     TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::noPage, emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 }
 
@@ -202,7 +202,7 @@ TEST_CASE(InvalidIndex)
     uint16_t       readLength                       = 0;
     std::string    text                             = "this is a string";
 
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::writeError, emuEEPROM.write(index, text.c_str(), text.size()));
+    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::writeError, emuEEPROM.write(index, text.c_str()));
     TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::noIndex, emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 }
 
@@ -215,7 +215,7 @@ TEST_CASE(DataPersistentAfterInit)
 
     // insert data, verify its contents, reinit the module and verify it is still present
 
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(index, text.c_str(), text.size()));
+    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(index, text.c_str()));
     TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::ok, emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 
     std::string retrievedString = readBuffer;
@@ -258,7 +258,7 @@ TEST_CASE(IndexExistsAPI)
     for (size_t i = 0; i < entry.size(); i++)
     {
         TEST_ASSERT(emuEEPROM.indexExists(entry.at(i).index) == false);
-        TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(entry.at(i).index, entry.at(i).text.c_str(), entry.at(i).text.size()));
+        TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(entry.at(i).index, entry.at(i).text.c_str()));
         TEST_ASSERT(emuEEPROM.indexExists(entry.at(i).index) == true);
     }
 }

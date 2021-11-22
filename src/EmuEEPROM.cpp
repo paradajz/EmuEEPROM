@@ -285,8 +285,10 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& le
     return status;
 }
 
-EmuEEPROM::writeStatus_t EmuEEPROM::write(const uint32_t index, const char* data, const uint16_t length)
+EmuEEPROM::writeStatus_t EmuEEPROM::write(const uint32_t index, const char* data)
 {
+    auto length = strlen(data);
+
     // no amount of page transfers is going to make this fit
     if (entrySize(length) >= (EMU_EEPROM_PAGE_SIZE - sizeof(pageStatus_t) - sizeof(_contentEndMarker)))
         return writeStatus_t::pageFull;

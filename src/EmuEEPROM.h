@@ -86,7 +86,7 @@ class EmuEEPROM
 
     bool          init();
     readStatus_t  read(uint32_t index, char* data, uint16_t& length, const uint16_t maxLength);
-    writeStatus_t write(const uint32_t index, const char* data, const uint16_t length);
+    writeStatus_t write(const uint32_t index, const char* data);
     bool          format();
     pageStatus_t  pageStatus(page_t page);
     writeStatus_t pageTransfer();
