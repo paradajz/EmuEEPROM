@@ -1,3 +1,3 @@
 #pragma once
 
-#define EMU_EEPROM_PAGE_SIZE 128
+#define EMU_EEPROM_PAGE_SIZE 256
