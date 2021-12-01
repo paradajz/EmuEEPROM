@@ -57,7 +57,8 @@ class EmuEEPROM
         ok,
         pageFull,
         noPage,
-        writeError
+        writeError,
+        dataError,
     };
 
     enum class page_t : uint8_t

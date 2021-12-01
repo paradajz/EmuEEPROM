@@ -206,6 +206,13 @@ TEST_CASE(InvalidIndex)
     TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::noIndex, emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 }
 
+TEST_CASE(InvalidString)
+{
+    const uint32_t index = 0xABCD;
+
+    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::dataError, emuEEPROM.write(index, nullptr));
+}
+
 TEST_CASE(DataPersistentAfterInit)
 {
     const uint32_t index                            = 0xABF4;
