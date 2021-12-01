@@ -452,7 +452,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint32_t index, const char* da
         if (_nextAddToWrite >= pageEndAddress)
             return writeStatus_t::pageFull;
 
-        if ((_nextAddToWrite - writeAddress) < entrySize(length))
+        if ((_nextAddToWrite + entrySize(length)) >= pageEndAddress)
             return writeStatus_t::pageFull;
 
         writeAddress = _nextAddToWrite;
