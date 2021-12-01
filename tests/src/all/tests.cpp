@@ -269,3 +269,29 @@ TEST_CASE(IndexExistsAPI)
         TEST_ASSERT(emuEEPROM.indexExists(entry.at(i).index) == true);
     }
 }
+
+TEST_CASE(PageTransfer)
+{
+    const uint32_t index                            = 0xEEEE;
+    char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
+    uint16_t       readLength                       = 0;
+    std::string    text                             = "page transfer";
+
+    auto sizeInEEPROM        = EmuEEPROM::entrySize(text.size());
+    auto loopsBeforeTransfer = EMU_EEPROM_PAGE_SIZE / sizeInEEPROM;
+
+    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page1) == EmuEEPROM::pageStatus_t::valid);
+    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page2) == EmuEEPROM::pageStatus_t::formatted);
+
+    for (size_t i = 0; i < loopsBeforeTransfer; i++)
+        TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(index, text.c_str()));
+
+    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page1) == EmuEEPROM::pageStatus_t::formatted);
+    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page2) == EmuEEPROM::pageStatus_t::valid);
+
+    // content must still be valid after transfer
+    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::ok, emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
+
+    std::string retrievedString = readBuffer;
+    TEST_ASSERT(text == retrievedString);
+}
