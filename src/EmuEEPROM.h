@@ -93,12 +93,12 @@ class EmuEEPROM
     writeStatus_t pageTransfer();
     bool          indexExists(uint32_t index);
 
-    constexpr uint8_t paddingBytes(uint16_t size)
+    static constexpr uint8_t paddingBytes(uint16_t size)
     {
         return ((4 - size % 4) % 4);
     }
 
-    constexpr uint32_t entrySize(uint16_t size = 1)
+    static constexpr uint32_t entrySize(uint16_t size = 1)
     {
         // single entry consists of:
         // content (uint32_t padded)
