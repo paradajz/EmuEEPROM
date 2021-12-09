@@ -24,6 +24,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <array>
+#include <optional>
 
 #ifdef EMUEEPROM_INCLUDE_CONFIG
 #include "EmuEEPROMConfig.h"
@@ -77,7 +78,7 @@ class EmuEEPROM
         virtual uint32_t startAddress(page_t page)             = 0;
         virtual bool     erasePage(page_t page)                = 0;
         virtual bool     write(uint32_t address, uint8_t data) = 0;
-        virtual uint8_t  read(uint32_t address)                = 0;
+        virtual bool     read(uint32_t address, uint8_t& data) = 0;
     };
 
     EmuEEPROM(StorageAccess& storageAccess, bool useFactoryPage)
@@ -125,15 +126,15 @@ class EmuEEPROM
     static constexpr uint32_t                                            _maxIndexes           = 0xFFFF - 1;
     std::array<uint32_t, (_maxIndexes / 32) + ((_maxIndexes % 32) != 0)> _indexTransferedArray = {};
 
-    bool          isIndexTransfered(uint32_t index);
-    void          markAsTransfered(uint32_t index);
-    bool          findValidPage(pageOp_t operation, page_t& page);
-    writeStatus_t writeInternal(uint32_t index, const char* data, uint16_t length);
-    bool          write8(uint32_t address, uint8_t data);
-    bool          write16(uint32_t address, uint16_t data);
-    bool          write32(uint32_t address, uint32_t data);
-    uint8_t       read8(uint32_t address);
-    uint16_t      read16(uint32_t address);
-    uint32_t      read32(uint32_t address);
-    uint16_t      xmodemCRCUpdate(uint16_t crc, char data);
+    bool                    isIndexTransfered(uint32_t index);
+    void                    markAsTransfered(uint32_t index);
+    bool                    findValidPage(pageOp_t operation, page_t& page);
+    writeStatus_t           writeInternal(uint32_t index, const char* data, uint16_t length);
+    bool                    write8(uint32_t address, uint8_t data);
+    bool                    write16(uint32_t address, uint16_t data);
+    bool                    write32(uint32_t address, uint32_t data);
+    std::optional<uint8_t>  read8(uint32_t address);
+    std::optional<uint16_t> read16(uint32_t address);
+    std::optional<uint32_t> read32(uint32_t address);
+    uint16_t                xmodemCRCUpdate(uint16_t crc, char data);
 };

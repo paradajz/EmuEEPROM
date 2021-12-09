@@ -162,12 +162,17 @@ bool EmuEEPROM::format()
     {
         for (uint32_t i = 0; i < EMU_EEPROM_PAGE_SIZE; i += 4)
         {
-            auto data = read32(_storageAccess.startAddress(page_t::pageFactory) + i);
+            auto retrieved = read32(_storageAccess.startAddress(page_t::pageFactory) + i);
 
-            if (data == 0xFFFFFFFF)
+            if (retrieved == std::nullopt)
+                return false;
+
+            uint32_t content = *retrieved;
+
+            if (content == 0xFFFFFFFF)
                 break;    // empty block, no need to go further
 
-            if (!write32(_storageAccess.startAddress(page_t::page1) + i, data))
+            if (!write32(_storageAccess.startAddress(page_t::page1) + i, content))
                 return false;
         }
     }
@@ -219,14 +224,20 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& le
     // check each active page address starting from end
     while (readAddress > pageStartAddress)
     {
-        auto readValue = read32(readAddress);
+        auto retrieved = read32(readAddress);
 
-        if (readValue == _contentEndMarker)
+        if (retrieved == std::nullopt)
+            return readStatus_t::readError;
+
+        if (*retrieved == _contentEndMarker)
         {
             next();
-            readValue = read32(readAddress);
+            retrieved = read32(readAddress);
 
-            if (readValue == index)
+            if (retrieved == std::nullopt)
+                return readStatus_t::readError;
+
+            if (*retrieved == index)
             {
                 // read the data in following order:
                 // size (2 bytes)
@@ -234,7 +245,12 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& le
                 // content (size bytes)
 
                 readAddress -= 2;
-                length = read16(readAddress);
+                auto lengthRetrieved = read16(readAddress);
+
+                if (lengthRetrieved == std::nullopt)
+                    return readStatus_t::readError;
+
+                length = *lengthRetrieved;
 
                 // use extra character for termination
                 if ((length + 1) >= maxLength)
@@ -242,6 +258,9 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& le
 
                 readAddress -= 2;
                 auto crcRetrieved = read16(readAddress);
+
+                if (crcRetrieved == std::nullopt)
+                    return readStatus_t::readError;
 
                 readAddress--;
 
@@ -251,20 +270,23 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& le
                 // make sure data is read in correct order
                 for (int i = paddingBytes(length) + length - 1; i >= 0; i--)
                 {
-                    auto value = read8(readAddress - i);
+                    auto content = read8(readAddress - i);
+
+                    if (content == std::nullopt)
+                        return readStatus_t::readError;
 
                     // don't append padding bytes
                     if (dataCount < length)
                     {
-                        data[dataCount] = value;
-                        crcActual       = xmodemCRCUpdate(crcActual, value);
+                        data[dataCount] = *content;
+                        crcActual       = xmodemCRCUpdate(crcActual, *content);
                     }
 
                     if (++dataCount >= maxLength)
                         break;
                 }
 
-                if (crcActual != crcRetrieved)
+                if (crcActual != *crcRetrieved)
                     return readStatus_t::invalidCrc;
 
                 data[length] = '\0';
@@ -464,7 +486,12 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint32_t index, const char* da
         // check each active page address starting from beginning
         while (writeAddress < pageEndAddress)
         {
-            if (read32(writeAddress) == _contentEndMarker)
+            auto retrieved = read32(writeAddress);
+
+            if (retrieved == std::nullopt)
+                return writeStatus_t::dataError;
+
+            if (*retrieved == _contentEndMarker)
             {
                 next();
                 return write();
@@ -527,35 +554,52 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
     {
         uint32_t address = _storageAccess.startAddress(oldPage) + i;
 
-        auto readValue = read32(address);
+        auto retrieved = read32(address);
 
-        if (readValue == _contentEndMarker)
+        if (retrieved == std::nullopt)
+            return writeStatus_t::dataError;
+
+        if (*retrieved == _contentEndMarker)
         {
             address -= sizeof(_contentEndMarker);
-            auto index = read32(address);
+            auto indexRetrieved = read32(address);
+
+            if (indexRetrieved == std::nullopt)
+                return writeStatus_t::dataError;
+
+            uint32_t index = *indexRetrieved;
 
             if (isIndexTransfered(index))
                 continue;
 
-            uint16_t length = 0;
-            uint16_t crc    = 0;
+            address -= sizeof(uint16_t);
+            auto lengthRetrieved = read16(address);
+
+            if (lengthRetrieved == std::nullopt)
+                return writeStatus_t::dataError;
 
             address -= sizeof(uint16_t);
-            length = read16(address);
+            auto crcRetrieved = read16(address);
 
-            address -= sizeof(uint16_t);
-            crc = read16(address);
+            if (crcRetrieved == std::nullopt)
+                return writeStatus_t::dataError;
 
             address--;
+
+            uint16_t length = *lengthRetrieved;
+            uint16_t crc    = *crcRetrieved;
 
             // at this point we can start writing data to the new page
             // content first
 
             for (int dataIndex = paddingBytes(length) + length - 1; dataIndex >= 0; dataIndex--)
             {
-                auto value = read8(address - dataIndex);
+                auto content = read8(address - dataIndex);
 
-                if (!write8(_nextAddToWrite++, value))
+                if (content == std::nullopt)
+                    return writeStatus_t::dataError;
+
+                if (!write8(_nextAddToWrite++, *content))
                     return writeStatus_t::writeError;
             }
 
@@ -616,16 +660,37 @@ EmuEEPROM::pageStatus_t EmuEEPROM::pageStatus(page_t page)
     switch (page)
     {
     case page_t::page1:
-        data = read32(_storageAccess.startAddress(page_t::page1));
-        break;
+    {
+        auto retrieved = read32(_storageAccess.startAddress(page_t::page1));
+
+        if (retrieved == std::nullopt)
+            return pageStatus_t::erased;
+
+        data = *retrieved;
+    }
+    break;
 
     case page_t::page2:
-        data = read32(_storageAccess.startAddress(page_t::page2));
-        break;
+    {
+        auto retrieved = read32(_storageAccess.startAddress(page_t::page2));
+
+        if (retrieved == std::nullopt)
+            return pageStatus_t::erased;
+
+        data = *retrieved;
+    }
+    break;
 
     case page_t::pageFactory:
-        data = read32(_storageAccess.startAddress(page_t::pageFactory));
-        break;
+    {
+        auto retrieved = read32(_storageAccess.startAddress(page_t::pageFactory));
+
+        if (retrieved == std::nullopt)
+            return pageStatus_t::erased;
+
+        data = *retrieved;
+    }
+    break;
 
     default:
         return pageStatus_t::erased;
@@ -696,18 +761,30 @@ bool EmuEEPROM::write32(uint32_t address, uint32_t data)
     return true;
 }
 
-uint8_t EmuEEPROM::read8(uint32_t address)
+std::optional<uint8_t> EmuEEPROM::read8(uint32_t address)
 {
-    return _storageAccess.read(address);
+    uint8_t data;
+
+    if (_storageAccess.read(address, data))
+        return data;
+
+    return std::nullopt;
 }
 
-uint16_t EmuEEPROM::read16(uint32_t address)
+std::optional<uint16_t> EmuEEPROM::read16(uint32_t address)
 {
     uint8_t  temp[2] = {};
     uint16_t data    = 0;
 
     for (size_t i = 0; i < 2; i++)
-        temp[i] = _storageAccess.read(address + i);
+    {
+        auto retrieved = read8(address + i);
+
+        if (retrieved == std::nullopt)
+            return std::nullopt;
+
+        temp[i] = *retrieved;
+    }
 
     data = temp[1];
     data <<= 8;
@@ -716,13 +793,20 @@ uint16_t EmuEEPROM::read16(uint32_t address)
     return data;
 }
 
-uint32_t EmuEEPROM::read32(uint32_t address)
+std::optional<uint32_t> EmuEEPROM::read32(uint32_t address)
 {
     uint8_t  temp[4] = {};
     uint32_t data    = 0;
 
     for (size_t i = 0; i < 4; i++)
-        temp[i] = _storageAccess.read(address + i);
+    {
+        auto retrieved = read8(address + i);
+
+        if (retrieved == std::nullopt)
+            return std::nullopt;
+
+        temp[i] = *retrieved;
+    }
 
     data = temp[3];
     data <<= 8;
@@ -785,14 +869,20 @@ bool EmuEEPROM::indexExists(uint32_t index)
     // check each active page address starting from end
     while (readAddress > pageStartAddress)
     {
-        auto readValue = read32(readAddress);
+        auto retrieved = read32(readAddress);
 
-        if (readValue == _contentEndMarker)
+        if (retrieved == std::nullopt)
+            return false;
+
+        if (*retrieved == _contentEndMarker)
         {
             next();
-            readValue = read32(readAddress);
+            retrieved = read32(readAddress);
 
-            if (readValue == index)
+            if (retrieved == std::nullopt)
+                return false;
+
+            if (*retrieved == index)
             {
                 return true;
             }

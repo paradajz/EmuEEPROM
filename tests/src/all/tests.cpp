@@ -42,9 +42,7 @@ namespace
         bool write(uint32_t address, uint8_t data) override
         {
             // 0->1 transition is not allowed
-            uint8_t currentData = read(address);
-
-            if (data > currentData)
+            if (data > pageArray.at(address))
                 return false;
 
             pageArray.at(address) = data;
@@ -52,9 +50,10 @@ namespace
             return true;
         }
 
-        uint8_t read(uint32_t address) override
+        bool read(uint32_t address, uint8_t& data) override
         {
-            return pageArray.at(address);
+            data = pageArray.at(address);
+            return true;
         }
 
         void reset()
