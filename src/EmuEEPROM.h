@@ -1,5 +1,5 @@
 /*
-    Copyright 2017-2020 Igor Petrovic
+    Copyright 2017-2022 Igor Petrovic
 
     Permission is hereby granted, free of charge, to any person obtaining
     a copy of this software and associated documentation files (the "Software"),
@@ -68,8 +68,6 @@ class EmuEEPROM
     class StorageAccess
     {
         public:
-        StorageAccess() {}
-
         virtual bool     init()                                   = 0;
         virtual uint32_t startAddress(page_t page)                = 0;
         virtual bool     erasePage(page_t page)                   = 0;
@@ -100,11 +98,11 @@ class EmuEEPROM
         write
     };
 
+    static constexpr uint32_t                MAX_ADDRESS = (EMU_EEPROM_PAGE_SIZE / 4) - 1;
     StorageAccess&                           _storageAccess;
-    static constexpr uint32_t                _maxAddress = (EMU_EEPROM_PAGE_SIZE / 4) - 1;
     bool                                     _useFactoryPage;
-    std::array<uint8_t, _maxAddress / 8 + 1> _varTransferedArray = {};
-    std::array<uint16_t, _maxAddress>        _eepromCache        = {};
+    std::array<uint8_t, MAX_ADDRESS / 8 + 1> _varTransferedArray = {};
+    std::array<uint16_t, MAX_ADDRESS>        _eepromCache        = {};
     uint32_t                                 _nextAddToWrite;
 
     bool          isVarTransfered(uint16_t address);
