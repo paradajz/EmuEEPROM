@@ -36,33 +36,33 @@ class EmuEEPROM
     public:
     enum class pageStatus_t : uint32_t
     {
-        valid     = 0x00,          ///< Page containing valid data
-        erased    = 0xFFFFFFFF,    ///< Page is empty
-        formatted = 0xFFFFEEEE,    ///< Page is prepared for use but currently unused
-        receiving = 0xEEEEEEEE     ///< Page is marked to receive data
+        VALID     = 0x00,          ///< Page containing valid data
+        ERASED    = 0xFFFFFFFF,    ///< Page is empty
+        FORMATTED = 0xFFFFEEEE,    ///< Page is prepared for use but currently unused
+        RECEIVING = 0xEEEEEEEE     ///< Page is marked to receive data
     };
 
     enum class readStatus_t : uint8_t
     {
-        ok,
-        noVar,
-        noPage,
-        readError
+        OK,
+        NO_VAR,
+        NO_PAGE,
+        READ_ERROR
     };
 
     enum class writeStatus_t : uint8_t
     {
-        ok,
-        pageFull,
-        noPage,
-        writeError
+        OK,
+        PAGE_FULL,
+        NO_PAGE,
+        WRITE_ERROR
     };
 
     enum class page_t : uint8_t
     {
-        page1,
-        page2,
-        pageFactory
+        PAGE_1,
+        PAGE_2,
+        PAGE_FACTORY
     };
 
     class StorageAccess
@@ -94,8 +94,8 @@ class EmuEEPROM
     private:
     enum class pageOp_t : uint8_t
     {
-        read,
-        write
+        READ,
+        WRITE
     };
 
     static constexpr uint32_t                MAX_ADDRESS = (EMU_EEPROM_PAGE_SIZE / 4) - 1;

@@ -33,38 +33,38 @@ bool EmuEEPROM::init()
     _nextAddToWrite = EMU_EEPROM_PAGE_SIZE;
     std::fill(_eepromCache.begin(), _eepromCache.end(), 0xFFFF);
 
-    auto page1Status = pageStatus(page_t::page1);
-    auto page2Status = pageStatus(page_t::page2);
+    auto page1Status = pageStatus(page_t::PAGE_1);
+    auto page2Status = pageStatus(page_t::PAGE_2);
 
     // check for invalid header states and repair if necessary
     switch (page1Status)
     {
-    case pageStatus_t::erased:
+    case pageStatus_t::ERASED:
     {
-        if (page2Status == pageStatus_t::valid)
+        if (page2Status == pageStatus_t::VALID)
         {
             // page 1 erased, page 2 valid
             // format page 1 properly
-            _storageAccess.erasePage(page_t::page1);
+            _storageAccess.erasePage(page_t::PAGE_1);
 
-            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page1), static_cast<uint32_t>(pageStatus_t::formatted)))
+            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::PAGE_1), static_cast<uint32_t>(pageStatus_t::FORMATTED)))
             {
                 return false;
             }
         }
-        else if (page2Status == pageStatus_t::receiving)
+        else if (page2Status == pageStatus_t::RECEIVING)
         {
             // page 1 erased, page 2 in receive state
             // again, format page 1 properly
-            _storageAccess.erasePage(page_t::page1);
+            _storageAccess.erasePage(page_t::PAGE_1);
 
-            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page1), static_cast<uint32_t>(pageStatus_t::formatted)))
+            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::PAGE_1), static_cast<uint32_t>(pageStatus_t::FORMATTED)))
             {
                 return false;
             }
 
             // mark page2 as valid
-            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page2), static_cast<uint32_t>(pageStatus_t::valid)))
+            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::PAGE_2), static_cast<uint32_t>(pageStatus_t::VALID)))
             {
                 return false;
             }
@@ -83,15 +83,15 @@ bool EmuEEPROM::init()
     }
     break;
 
-    case pageStatus_t::receiving:
+    case pageStatus_t::RECEIVING:
     {
-        if (page2Status == pageStatus_t::valid)
+        if (page2Status == pageStatus_t::VALID)
         {
             // page 1 in receive state, page 2 valid
             // restart the transfer process by first erasing page 1 and then performing page transfer
-            _storageAccess.erasePage(page_t::page1);
+            _storageAccess.erasePage(page_t::PAGE_1);
 
-            if (pageTransfer() != writeStatus_t::ok)
+            if (pageTransfer() != writeStatus_t::OK)
             {
                 // error occured, try to format
                 if (!format())
@@ -103,19 +103,19 @@ bool EmuEEPROM::init()
             // page has been transfered and with it, all contents have been cached
             doCache = false;
         }
-        else if (page2Status == pageStatus_t::erased)
+        else if (page2Status == pageStatus_t::ERASED)
         {
             // page 1 in receive state, page 2 erased
             // erase page 2
-            _storageAccess.erasePage(page_t::page2);
+            _storageAccess.erasePage(page_t::PAGE_2);
 
-            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page2), static_cast<uint32_t>(pageStatus_t::formatted)))
+            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::PAGE_2), static_cast<uint32_t>(pageStatus_t::FORMATTED)))
             {
                 return false;
             }
 
             // mark page 1 as valid
-            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page1), static_cast<uint32_t>(pageStatus_t::valid)))
+            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::PAGE_1), static_cast<uint32_t>(pageStatus_t::VALID)))
             {
                 return false;
             }
@@ -134,9 +134,9 @@ bool EmuEEPROM::init()
     }
     break;
 
-    case pageStatus_t::valid:
+    case pageStatus_t::VALID:
     {
-        if (page2Status == pageStatus_t::valid)
+        if (page2Status == pageStatus_t::VALID)
         {
             // invalid state
             if (!format())
@@ -144,18 +144,18 @@ bool EmuEEPROM::init()
                 return false;
             }
         }
-        else if (page2Status == pageStatus_t::erased)
+        else if (page2Status == pageStatus_t::ERASED)
         {
             // page 1 valid, page 2 erased
             // format page2
-            _storageAccess.erasePage(page_t::page2);
+            _storageAccess.erasePage(page_t::PAGE_2);
 
-            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page2), static_cast<uint32_t>(pageStatus_t::formatted)))
+            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::PAGE_2), static_cast<uint32_t>(pageStatus_t::FORMATTED)))
             {
                 return false;
             }
         }
-        else if (page2Status == pageStatus_t::formatted)
+        else if (page2Status == pageStatus_t::FORMATTED)
         {
             // nothing to do
         }
@@ -163,9 +163,9 @@ bool EmuEEPROM::init()
         {
             // page 1 valid, page 2 in receive state
             // restart the transfer process by first erasing page 2 and then performing page transfer
-            _storageAccess.erasePage(page_t::page2);
+            _storageAccess.erasePage(page_t::PAGE_2);
 
-            if (pageTransfer() != writeStatus_t::ok)
+            if (pageTransfer() != writeStatus_t::OK)
             {
                 // error occured, try to format
                 if (!format())
@@ -209,12 +209,12 @@ bool EmuEEPROM::format()
 {
     // erase both pages and set page 1 as valid
 
-    if (!_storageAccess.erasePage(page_t::page1))
+    if (!_storageAccess.erasePage(page_t::PAGE_1))
     {
         return false;
     }
 
-    if (!_storageAccess.erasePage(page_t::page2))
+    if (!_storageAccess.erasePage(page_t::PAGE_2))
     {
         return false;
     }
@@ -223,13 +223,13 @@ bool EmuEEPROM::format()
     std::fill(_eepromCache.begin(), _eepromCache.end(), 0xFFFF);
 
     // copy contents from factory page to page 1 if the page is in correct status
-    if (_useFactoryPage && (pageStatus(page_t::pageFactory) == pageStatus_t::valid))
+    if (_useFactoryPage && (pageStatus(page_t::PAGE_FACTORY) == pageStatus_t::VALID))
     {
         for (uint32_t i = 0; i < EMU_EEPROM_PAGE_SIZE; i += 4)
         {
             uint32_t data;
 
-            if (!_storageAccess.read32(_storageAccess.startAddress(page_t::pageFactory) + i, data))
+            if (!_storageAccess.read32(_storageAccess.startAddress(page_t::PAGE_FACTORY) + i, data))
             {
                 return false;
             }
@@ -239,7 +239,7 @@ bool EmuEEPROM::format()
                 break;    // empty block, no need to go further
             }
 
-            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page1) + i, data))
+            if (!_storageAccess.write32(_storageAccess.startAddress(page_t::PAGE_1) + i, data))
             {
                 return false;
             }
@@ -253,12 +253,12 @@ bool EmuEEPROM::format()
     else
     {
         // set valid status to page1
-        if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page1), static_cast<uint32_t>(pageStatus_t::valid)))
+        if (!_storageAccess.write32(_storageAccess.startAddress(page_t::PAGE_1), static_cast<uint32_t>(pageStatus_t::VALID)))
         {
             return false;
         }
 
-        if (!_storageAccess.write32(_storageAccess.startAddress(page_t::page2), static_cast<uint32_t>(pageStatus_t::formatted)))
+        if (!_storageAccess.write32(_storageAccess.startAddress(page_t::PAGE_2), static_cast<uint32_t>(pageStatus_t::FORMATTED)))
         {
             return false;
         }
@@ -273,23 +273,23 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
 {
     if (address >= maxAddress())
     {
-        return readStatus_t::readError;
+        return readStatus_t::READ_ERROR;
     }
 
     if (_eepromCache[address] != 0xFFFF)
     {
         data = _eepromCache[address];
-        return readStatus_t::ok;
+        return readStatus_t::OK;
     }
 
     page_t validPage;
 
-    if (!findValidPage(pageOp_t::read, validPage))
+    if (!findValidPage(pageOp_t::READ, validPage))
     {
-        return readStatus_t::noPage;
+        return readStatus_t::NO_PAGE;
     }
 
-    readStatus_t status = readStatus_t::noVar;
+    readStatus_t status = readStatus_t::NO_VAR;
 
     // take into account 4-byte page header
     uint32_t startAddress     = _storageAccess.startAddress(validPage);
@@ -297,7 +297,8 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
     uint32_t pageStartAddress = startAddress + 4;
     uint32_t pageEndAddress   = startAddress + pageSize - 2;
 
-    auto next = [&pageEndAddress]() {
+    auto next = [&pageEndAddress]()
+    {
         pageEndAddress = pageEndAddress - 4;
     };
 
@@ -327,12 +328,12 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
                 // get content of Address-2 which is variable value
                 if (!_storageAccess.read16(pageEndAddress - 2, data))
                 {
-                    return readStatus_t::readError;
+                    return readStatus_t::READ_ERROR;
                 }
 
                 _eepromCache[address] = data;
 
-                return readStatus_t::ok;
+                return readStatus_t::OK;
             }
 
             next();
@@ -350,18 +351,18 @@ EmuEEPROM::readStatus_t EmuEEPROM::readCached(uint32_t address, uint16_t& data)
 {
     if (address >= MAX_ADDRESS)
     {
-        return readStatus_t::noVar;
+        return readStatus_t::NO_VAR;
     }
 
     data = _eepromCache[address];
-    return readStatus_t::ok;
+    return readStatus_t::OK;
 }
 
 EmuEEPROM::writeStatus_t EmuEEPROM::write(uint32_t address, uint16_t data)
 {
     if (address >= maxAddress())
     {
-        return writeStatus_t::writeError;
+        return writeStatus_t::WRITE_ERROR;
     }
 
     writeStatus_t status;
@@ -369,12 +370,12 @@ EmuEEPROM::writeStatus_t EmuEEPROM::write(uint32_t address, uint16_t data)
     // rite the variable virtual address and value in the EEPROM
     status = writeInternal(address, data);
 
-    if (status == writeStatus_t::pageFull)
+    if (status == writeStatus_t::PAGE_FULL)
     {
         status = pageTransfer();
 
         // write the variable again to a new page
-        if (status == writeStatus_t::ok)
+        if (status == writeStatus_t::OK)
         {
             status = writeInternal(address, data);
         }
@@ -385,33 +386,33 @@ EmuEEPROM::writeStatus_t EmuEEPROM::write(uint32_t address, uint16_t data)
 
 bool EmuEEPROM::findValidPage(pageOp_t operation, page_t& page)
 {
-    auto page1Status = pageStatus(page_t::page1);
-    auto page2Status = pageStatus(page_t::page2);
+    auto page1Status = pageStatus(page_t::PAGE_1);
+    auto page2Status = pageStatus(page_t::PAGE_2);
 
     switch (operation)
     {
-    case pageOp_t::write:
+    case pageOp_t::WRITE:
     {
-        if (page2Status == pageStatus_t::valid)
+        if (page2Status == pageStatus_t::VALID)
         {
-            if (page1Status == pageStatus_t::receiving)
+            if (page1Status == pageStatus_t::RECEIVING)
             {
-                page = page_t::page1;
+                page = page_t::PAGE_1;
             }
             else
             {
-                page = page_t::page2;
+                page = page_t::PAGE_2;
             }
         }
-        else if (page1Status == pageStatus_t::valid)
+        else if (page1Status == pageStatus_t::VALID)
         {
-            if (page2Status == pageStatus_t::receiving)
+            if (page2Status == pageStatus_t::RECEIVING)
             {
-                page = page_t::page2;
+                page = page_t::PAGE_2;
             }
             else
             {
-                page = page_t::page1;
+                page = page_t::PAGE_1;
             }
         }
         else
@@ -422,15 +423,15 @@ bool EmuEEPROM::findValidPage(pageOp_t operation, page_t& page)
     }
     break;
 
-    case pageOp_t::read:
+    case pageOp_t::READ:
     {
-        if (page1Status == pageStatus_t::valid)
+        if (page1Status == pageStatus_t::VALID)
         {
-            page = page_t::page1;
+            page = page_t::PAGE_1;
         }
-        else if (page2Status == pageStatus_t::valid)
+        else if (page2Status == pageStatus_t::VALID)
         {
-            page = page_t::page2;
+            page = page_t::PAGE_2;
         }
         else
         {
@@ -442,7 +443,7 @@ bool EmuEEPROM::findValidPage(pageOp_t operation, page_t& page)
 
     default:
     {
-        page = page_t::page1;
+        page = page_t::PAGE_1;
     }
     break;
     }
@@ -454,14 +455,14 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
 {
     if (address == 0xFFFF)
     {
-        return writeStatus_t::writeError;
+        return writeStatus_t::WRITE_ERROR;
     }
 
     page_t validPage;
 
-    if (!findValidPage(pageOp_t::write, validPage))
+    if (!findValidPage(pageOp_t::WRITE, validPage))
     {
-        return writeStatus_t::noPage;
+        return writeStatus_t::NO_PAGE;
     }
 
     // take into account 4-byte page header
@@ -470,7 +471,8 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
     uint32_t pageStartAddress = startAddress + 4;
     uint32_t pageEndAddress   = startAddress + pageSize - 2;
 
-    auto next = [&pageStartAddress]() {
+    auto next = [&pageStartAddress]()
+    {
         pageStartAddress += 4;
     };
 
@@ -478,23 +480,23 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
     {
         if (_nextAddToWrite >= pageEndAddress)
         {
-            return writeStatus_t::pageFull;
+            return writeStatus_t::PAGE_FULL;
         }
 
         if (!_storageAccess.write16(_nextAddToWrite, data))
         {
-            return writeStatus_t::writeError;
+            return writeStatus_t::WRITE_ERROR;
         }
 
         // set variable virtual address
         if (!_storageAccess.write16(_nextAddToWrite + 2, address))
         {
-            return writeStatus_t::writeError;
+            return writeStatus_t::WRITE_ERROR;
         }
 
         _nextAddToWrite += 4;
         _eepromCache[address] = data;
-        return writeStatus_t::ok;
+        return writeStatus_t::OK;
     }
 
     // check each active page address starting from begining
@@ -508,19 +510,19 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
             {
                 if (!_storageAccess.write16(pageStartAddress, data))
                 {
-                    return writeStatus_t::writeError;
+                    return writeStatus_t::WRITE_ERROR;
                 }
 
                 // set variable virtual address
                 if (!_storageAccess.write16(pageStartAddress + 2, address))
                 {
-                    return writeStatus_t::writeError;
+                    return writeStatus_t::WRITE_ERROR;
                 }
 
                 _nextAddToWrite = pageStartAddress + 4;
 
                 _eepromCache[address] = data;
-                return writeStatus_t::ok;
+                return writeStatus_t::OK;
             }
 
             next();
@@ -531,41 +533,41 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
         }
     }
 
-    return writeStatus_t::pageFull;
+    return writeStatus_t::PAGE_FULL;
 }
 
 EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
 {
     page_t validPage;
 
-    if (!findValidPage(pageOp_t::read, validPage))
+    if (!findValidPage(pageOp_t::READ, validPage))
     {
-        return writeStatus_t::noPage;
+        return writeStatus_t::NO_PAGE;
     }
 
-    uint32_t newPageAddress = _storageAccess.startAddress(page_t::page1);
-    page_t   oldPage        = page_t::page1;
+    uint32_t newPageAddress = _storageAccess.startAddress(page_t::PAGE_1);
+    page_t   oldPage        = page_t::PAGE_1;
 
-    if (validPage == page_t::page2)
+    if (validPage == page_t::PAGE_2)
     {
         // new page address where variable will be moved to
-        newPageAddress = _storageAccess.startAddress(page_t::page1);
+        newPageAddress = _storageAccess.startAddress(page_t::PAGE_1);
 
         // old page ID where variable will be taken from
-        oldPage = page_t::page2;
+        oldPage = page_t::PAGE_2;
     }
-    else if (validPage == page_t::page1)
+    else if (validPage == page_t::PAGE_1)
     {
         // new page address  where variable will be moved to
-        newPageAddress = _storageAccess.startAddress(page_t::page2);
+        newPageAddress = _storageAccess.startAddress(page_t::PAGE_2);
 
         // old page ID where variable will be taken from
-        oldPage = page_t::page1;
+        oldPage = page_t::PAGE_1;
     }
 
-    if (!_storageAccess.write32(newPageAddress, static_cast<uint32_t>(pageStatus_t::receiving)))
+    if (!_storageAccess.write32(newPageAddress, static_cast<uint32_t>(pageStatus_t::RECEIVING)))
     {
-        return writeStatus_t::writeError;
+        return writeStatus_t::WRITE_ERROR;
     }
 
     writeStatus_t eepromStatus;
@@ -589,7 +591,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
 
             if (address >= maxAddress())
             {
-                return writeStatus_t::writeError;
+                return writeStatus_t::WRITE_ERROR;
             }
 
             if (isVarTransfered(address))
@@ -600,7 +602,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
             // move variable to new active page
             eepromStatus = writeInternal(address, value);
 
-            if (eepromStatus != writeStatus_t::ok)
+            if (eepromStatus != writeStatus_t::OK)
             {
                 return eepromStatus;
             }
@@ -612,21 +614,21 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
     // format old page
     _storageAccess.erasePage(oldPage);
 
-    if (!_storageAccess.write32(_storageAccess.startAddress(oldPage), static_cast<uint32_t>(pageStatus_t::formatted)))
+    if (!_storageAccess.write32(_storageAccess.startAddress(oldPage), static_cast<uint32_t>(pageStatus_t::FORMATTED)))
     {
-        return writeStatus_t::writeError;
+        return writeStatus_t::WRITE_ERROR;
     }
 
     // set new Page status to VALID_PAGE status
-    if (!_storageAccess.write32(newPageAddress, static_cast<uint32_t>(pageStatus_t::valid)))
+    if (!_storageAccess.write32(newPageAddress, static_cast<uint32_t>(pageStatus_t::VALID)))
     {
-        return writeStatus_t::writeError;
+        return writeStatus_t::WRITE_ERROR;
     }
 
     // reset transfered flags
     std::fill(_varTransferedArray.begin(), _varTransferedArray.end(), 0);
 
-    return writeStatus_t::ok;
+    return writeStatus_t::OK;
 }
 
 EmuEEPROM::pageStatus_t EmuEEPROM::pageStatus(page_t page)
@@ -636,51 +638,51 @@ EmuEEPROM::pageStatus_t EmuEEPROM::pageStatus(page_t page)
 
     switch (page)
     {
-    case page_t::page1:
+    case page_t::PAGE_1:
     {
-        _storageAccess.read32(_storageAccess.startAddress(page_t::page1), data);
+        _storageAccess.read32(_storageAccess.startAddress(page_t::PAGE_1), data);
     }
     break;
 
-    case page_t::page2:
+    case page_t::PAGE_2:
     {
-        _storageAccess.read32(_storageAccess.startAddress(page_t::page2), data);
+        _storageAccess.read32(_storageAccess.startAddress(page_t::PAGE_2), data);
     }
     break;
 
-    case page_t::pageFactory:
+    case page_t::PAGE_FACTORY:
     {
-        _storageAccess.read32(_storageAccess.startAddress(page_t::pageFactory), data);
+        _storageAccess.read32(_storageAccess.startAddress(page_t::PAGE_FACTORY), data);
     }
     break;
 
     default:
-        return pageStatus_t::erased;
+        return pageStatus_t::ERASED;
     }
 
     switch (data)
     {
-    case static_cast<uint32_t>(EmuEEPROM::pageStatus_t::erased):
+    case static_cast<uint32_t>(EmuEEPROM::pageStatus_t::ERASED):
     {
-        status = EmuEEPROM::pageStatus_t::erased;
+        status = EmuEEPROM::pageStatus_t::ERASED;
     }
     break;
 
-    case static_cast<uint32_t>(EmuEEPROM::pageStatus_t::receiving):
+    case static_cast<uint32_t>(EmuEEPROM::pageStatus_t::RECEIVING):
     {
-        status = EmuEEPROM::pageStatus_t::receiving;
+        status = EmuEEPROM::pageStatus_t::RECEIVING;
     }
     break;
 
-    case static_cast<uint32_t>(EmuEEPROM::pageStatus_t::valid):
+    case static_cast<uint32_t>(EmuEEPROM::pageStatus_t::VALID):
     {
-        status = EmuEEPROM::pageStatus_t::valid;
+        status = EmuEEPROM::pageStatus_t::VALID;
     }
     break;
 
     default:
     {
-        status = EmuEEPROM::pageStatus_t::formatted;
+        status = EmuEEPROM::pageStatus_t::FORMATTED;
     }
     break;
     }
@@ -709,7 +711,7 @@ bool EmuEEPROM::cache()
     page_t validPage;
     std::fill(_varTransferedArray.begin(), _varTransferedArray.end(), 0);
 
-    if (!findValidPage(pageOp_t::write, validPage))
+    if (!findValidPage(pageOp_t::WRITE, validPage))
     {
         return false;
     }
