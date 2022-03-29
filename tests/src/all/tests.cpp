@@ -55,23 +55,6 @@ namespace
                 return true;
             }
 
-            bool write16(uint32_t address, uint16_t data) override
-            {
-                // 0->1 transition is not allowed
-                uint16_t currentData = 0;
-                read16(address, currentData);
-
-                if (data > currentData)
-                {
-                    return false;
-                }
-
-                _pageArray.at(address + 0) = (data >> 0) & static_cast<uint16_t>(0xFF);
-                _pageArray.at(address + 1) = (data >> 8) & static_cast<uint16_t>(0xFF);
-
-                return true;
-            }
-
             bool write32(uint32_t address, uint32_t data) override
             {
                 // 0->1 transition is not allowed
@@ -87,15 +70,6 @@ namespace
                 _pageArray.at(address + 1) = (data >> 8) & static_cast<uint16_t>(0xFF);
                 _pageArray.at(address + 2) = (data >> 16) & static_cast<uint16_t>(0xFF);
                 _pageArray.at(address + 3) = (data >> 24) & static_cast<uint16_t>(0xFF);
-
-                return true;
-            }
-
-            bool read16(uint32_t address, uint16_t& data) override
-            {
-                data = _pageArray.at(address + 1);
-                data <<= 8;
-                data |= _pageArray.at(address + 0);
 
                 return true;
             }

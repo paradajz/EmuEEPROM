@@ -295,7 +295,7 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
     uint32_t startAddress     = _storageAccess.startAddress(validPage);
     uint32_t pageSize         = EMU_EEPROM_PAGE_SIZE;
     uint32_t pageStartAddress = startAddress + 4;
-    uint32_t pageEndAddress   = startAddress + pageSize - 2;
+    uint32_t pageEndAddress   = startAddress + pageSize;
 
     auto next = [&pageEndAddress]()
     {
@@ -305,34 +305,25 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
     if (_nextAddToWrite != EMU_EEPROM_PAGE_SIZE)
     {
         //_nextAddToWrite contains next address to which new data will be written
-        // subtracting this value by 2 results in having the last written address
-        // this will speed up the finding of read address process since all unused
-        // addresses will be skipped
-        if (_nextAddToWrite >= 2)
+        // Subtracting this value by 4 results in having the last written address.
+        // This will speed up the finding of read address process since all unused
+        // addresses will be skipped.
+        if (_nextAddToWrite >= 4)
         {
-            pageEndAddress = _nextAddToWrite - 2;
+            pageEndAddress = _nextAddToWrite - 4;
         }
     }
 
     // check each active page address starting from end
     while (pageEndAddress > pageStartAddress)
     {
-        // get the current location content to be compared with virtual address
-        uint16_t addressValue = 0;
+        uint32_t retrieved = 0;
 
-        if (_storageAccess.read16(pageEndAddress, addressValue))
+        if (_storageAccess.read32(pageEndAddress, retrieved))
         {
-            // compare the read address with the virtual address
-            if (addressValue == address)
+            if ((retrieved >> 16) == address)
             {
-                // get content of Address-2 which is variable value
-                if (!_storageAccess.read16(pageEndAddress - 2, data))
-                {
-                    return readStatus_t::READ_ERROR;
-                }
-
-                _eepromCache[address] = data;
-
+                _eepromCache[address] = retrieved & 0xFFFF;
                 return readStatus_t::OK;
             }
 
@@ -469,7 +460,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
     uint32_t startAddress     = _storageAccess.startAddress(validPage);
     uint32_t pageSize         = EMU_EEPROM_PAGE_SIZE;
     uint32_t pageStartAddress = startAddress + 4;
-    uint32_t pageEndAddress   = startAddress + pageSize - 2;
+    uint32_t pageEndAddress   = startAddress + pageSize;
 
     auto next = [&pageStartAddress]()
     {
@@ -483,13 +474,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
             return writeStatus_t::PAGE_FULL;
         }
 
-        if (!_storageAccess.write16(_nextAddToWrite, data))
-        {
-            return writeStatus_t::WRITE_ERROR;
-        }
-
-        // set variable virtual address
-        if (!_storageAccess.write16(_nextAddToWrite + 2, address))
+        if (!_storageAccess.write32(_nextAddToWrite, address << 16 | data))
         {
             return writeStatus_t::WRITE_ERROR;
         }
@@ -508,13 +493,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t dat
         {
             if (readData == 0xFFFFFFFF)
             {
-                if (!_storageAccess.write16(pageStartAddress, data))
-                {
-                    return writeStatus_t::WRITE_ERROR;
-                }
-
-                // set variable virtual address
-                if (!_storageAccess.write16(pageStartAddress + 2, address))
+                if (!_storageAccess.write32(pageStartAddress, address << 16 | data))
                 {
                     return writeStatus_t::WRITE_ERROR;
                 }

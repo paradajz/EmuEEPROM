@@ -71,9 +71,7 @@ class EmuEEPROM
         virtual bool     init()                                   = 0;
         virtual uint32_t startAddress(page_t page)                = 0;
         virtual bool     erasePage(page_t page)                   = 0;
-        virtual bool     write16(uint32_t address, uint16_t data) = 0;
         virtual bool     write32(uint32_t address, uint32_t data) = 0;
-        virtual bool     read16(uint32_t address, uint16_t& data) = 0;
         virtual bool     read32(uint32_t address, uint32_t& data) = 0;
     };
 
