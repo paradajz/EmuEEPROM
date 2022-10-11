@@ -37,42 +37,42 @@ class EmuEEPROM
     public:
     enum class pageStatus_t : uint32_t
     {
-        valid     = 0x00,          ///< Page containing valid data
-        erased    = 0xFFFFFFFF,    ///< Page is empty
-        formatted = 0xFFFFEEEE,    ///< Page is prepared for use but currently unused
-        receiving = 0xEEEEEEEE     ///< Page is marked to receive data
+        VALID     = 0x00,          ///< Page containing valid data
+        ERASED    = 0xFFFFFFFF,    ///< Page is empty
+        FORMATTED = 0xFFFFEEEE,    ///< Page is prepared for use but currently unused
+        RECEIVING = 0xEEEEEEEE     ///< Page is marked to receive data
     };
 
     enum class readStatus_t : uint8_t
     {
-        ok,
-        noIndex,
-        noPage,
-        bufferTooSmall,
-        readError,
-        invalidCrc
+        OK,
+        NO_INDEX,
+        NO_PAGE,
+        BUFFER_TOO_SMALL,
+        READ_ERROR,
+        INVALID_CRC
     };
 
     enum class writeStatus_t : uint8_t
     {
-        ok,
-        pageFull,
-        noPage,
-        writeError,
-        dataError,
+        OK,
+        PAGE_FULL,
+        NO_PAGE,
+        WRITE_ERROR,
+        DATA_ERROR,
     };
 
     enum class page_t : uint8_t
     {
-        page1,
-        page2,
-        pageFactory
+        PAGE_1,
+        PAGE_2,
+        PAGE_FACTORY
     };
 
     class StorageAccess
     {
         public:
-        StorageAccess() {}
+        StorageAccess() = default;
 
         virtual bool     init()                                = 0;
         virtual uint32_t startAddress(page_t page)             = 0;
@@ -83,7 +83,7 @@ class EmuEEPROM
 
     EmuEEPROM(StorageAccess& storageAccess, bool useFactoryPage)
         : _storageAccess(storageAccess)
-        , _useFactoryPage(useFactoryPage)
+        , USE_FACTORY_PAGE(useFactoryPage)
     {}
 
     bool          init();
@@ -113,18 +113,18 @@ class EmuEEPROM
     private:
     enum class pageOp_t : uint8_t
     {
-        read,
-        write
+        READ,
+        WRITE
     };
 
     StorageAccess&            _storageAccess;
-    const bool                _useFactoryPage;
-    static constexpr uint32_t _contentEndMarker = 0x00;
-    uint32_t                  _nextAddToWrite   = 0;
+    const bool                USE_FACTORY_PAGE;
+    static constexpr uint32_t CONTENT_END_MARKER = 0x00;
+    uint32_t                  _nextAddToWrite    = 0;
 
     // first four bytes are reserved for page status, and next four for first (blank) content marker
-    static constexpr uint32_t                                            _maxIndexes           = 0xFFFF - 1;
-    std::array<uint32_t, (_maxIndexes / 32) + ((_maxIndexes % 32) != 0)> _indexTransferedArray = {};
+    static constexpr uint32_t                                            MAX_INDEXES           = 0xFFFF - 1;
+    std::array<uint32_t, (MAX_INDEXES / 32) + ((MAX_INDEXES % 32) != 0)> _indexTransferedArray = {};
 
     bool                    isIndexTransfered(uint32_t index);
     void                    markAsTransfered(uint32_t index);
