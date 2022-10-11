@@ -29,77 +29,70 @@ namespace
                 return true;
             }
 
-            uint32_t startAddress(EmuEEPROM::page_t page) override
-            {
-                if (page == EmuEEPROM::page_t::PAGE_1)
-                {
-                    return 0;
-                }
-
-                return EMU_EEPROM_PAGE_SIZE;
-            }
-
             bool erasePage(EmuEEPROM::page_t page) override
             {
-                if (page == EmuEEPROM::page_t::PAGE_1)
+                if (page == EmuEEPROM::page_t::PAGE_FACTORY)
                 {
-                    std::fill(_pageArray.begin(), _pageArray.end() - EMU_EEPROM_PAGE_SIZE, 0xFF);
-                }
-                else
-                {
-                    std::fill(_pageArray.begin() + EMU_EEPROM_PAGE_SIZE, _pageArray.end(), 0xFF);
+                    return false;
                 }
 
+                std::fill(_pageArray.at(static_cast<uint8_t>(page)).begin(), _pageArray.at(static_cast<uint8_t>(page)).end(), 0xFF);
                 _pageEraseCounter++;
 
                 return true;
             }
 
-            bool write32(uint32_t address, uint32_t data) override
+            bool write32(EmuEEPROM::page_t page, uint32_t offset, uint32_t data) override
             {
+                if (page == EmuEEPROM::page_t::PAGE_FACTORY)
+                {
+                    return false;
+                }
+
                 // 0->1 transition is not allowed
                 uint32_t currentData = 0;
-                read32(address, currentData);
+                read32(page, offset, currentData);
 
                 if (data > currentData)
                 {
                     return false;
                 }
 
-                _pageArray.at(address + 0) = (data >> 0) & static_cast<uint16_t>(0xFF);
-                _pageArray.at(address + 1) = (data >> 8) & static_cast<uint16_t>(0xFF);
-                _pageArray.at(address + 2) = (data >> 16) & static_cast<uint16_t>(0xFF);
-                _pageArray.at(address + 3) = (data >> 24) & static_cast<uint16_t>(0xFF);
+                _pageArray.at(static_cast<uint8_t>(page)).at(offset + 0) = (data >> 0) & static_cast<uint16_t>(0xFF);
+                _pageArray.at(static_cast<uint8_t>(page)).at(offset + 1) = (data >> 8) & static_cast<uint16_t>(0xFF);
+                _pageArray.at(static_cast<uint8_t>(page)).at(offset + 2) = (data >> 16) & static_cast<uint16_t>(0xFF);
+                _pageArray.at(static_cast<uint8_t>(page)).at(offset + 3) = (data >> 24) & static_cast<uint16_t>(0xFF);
 
                 return true;
             }
 
-            bool read32(uint32_t address, uint32_t& data) override
+            bool read32(EmuEEPROM::page_t page, uint32_t offset, uint32_t& data) override
             {
-                data = _pageArray.at(address + 3);
+                data = _pageArray.at(static_cast<uint8_t>(page)).at(offset + 3);
                 data <<= 8;
-                data |= _pageArray.at(address + 2);
+                data |= _pageArray.at(static_cast<uint8_t>(page)).at(offset + 2);
                 data <<= 8;
-                data |= _pageArray.at(address + 1);
+                data |= _pageArray.at(static_cast<uint8_t>(page)).at(offset + 1);
                 data <<= 8;
-                data |= _pageArray.at(address + 0);
+                data |= _pageArray.at(static_cast<uint8_t>(page)).at(offset + 0);
 
                 return true;
             }
 
-            void reset()
-            {
-                std::fill(_pageArray.begin(), _pageArray.end(), 0xFF);
-            }
-
-            std::array<uint8_t, EMU_EEPROM_PAGE_SIZE * 2> _pageArray;
-            size_t                                        _pageEraseCounter = 0;
+            std::array<std::array<uint8_t, EMU_EEPROM_PAGE_SIZE>, 2> _pageArray;
+            size_t                                                   _pageEraseCounter = 0;
         };
 
         StorageMock _storageMock;
         EmuEEPROM   _emuEEPROM = EmuEEPROM(_storageMock, false);
     };
 }    // namespace
+
+TEST_F(EmuEEPROMTest, ReadNonExisting)
+{
+    uint16_t value;
+    ASSERT_EQ(EmuEEPROM::readStatus_t::NO_VAR, _emuEEPROM.read(0, value));
+}
 
 TEST_F(EmuEEPROMTest, Insert)
 {
@@ -187,25 +180,26 @@ TEST_F(EmuEEPROMTest, OverFlow)
     uint16_t readData16 = 0;
 
     // manually prepare flash pages
-    _storageMock.reset();
+    _storageMock.erasePage(EmuEEPROM::page_t::PAGE_1);
+    _storageMock.erasePage(EmuEEPROM::page_t::PAGE_2);
 
     // set page 1 to valid state and page 2 to formatted
-    _storageMock.write32(0, static_cast<uint32_t>(EmuEEPROM::pageStatus_t::VALID));
-    _storageMock.write32(EMU_EEPROM_PAGE_SIZE, static_cast<uint32_t>(EmuEEPROM::pageStatus_t::FORMATTED));
+    _storageMock.write32(EmuEEPROM::page_t::PAGE_1, 0, static_cast<uint32_t>(EmuEEPROM::pageStatus_t::VALID));
+    _storageMock.write32(EmuEEPROM::page_t::PAGE_2, 0, static_cast<uint32_t>(EmuEEPROM::pageStatus_t::FORMATTED));
 
     // now, write data with address being larger than the max page size
 
     // value 0, address EMU_EEPROM_PAGE_SIZE + 1
     // emulated storage writes value first (2 bytes) and then address (2 bytes)
     // use raw address 4 - first four bytes are for page status
-    _storageMock.write32(4, static_cast<uint32_t>(EMU_EEPROM_PAGE_SIZE + 1) << 16 | 0x0000);
-    _storageMock.read32(4, readData);
+    _storageMock.write32(EmuEEPROM::page_t::PAGE_1, 4, static_cast<uint32_t>(EMU_EEPROM_PAGE_SIZE + 1) << 16 | 0x0000);
+    _storageMock.read32(EmuEEPROM::page_t::PAGE_1, 4, readData);
     ASSERT_EQ(static_cast<uint32_t>(EMU_EEPROM_PAGE_SIZE + 1) << 16 | 0x0000, readData);
 
     _emuEEPROM.init();
 
     // expect page1 to be formatted due to invalid data
-    _storageMock.read32(4, readData);
+    _storageMock.read32(EmuEEPROM::page_t::PAGE_1, 4, readData);
     ASSERT_EQ(0xFFFFFFFF, readData);
 
     // attempt to write and read an address larger than max allowed (page size / 4 minus one address)

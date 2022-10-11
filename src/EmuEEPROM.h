@@ -68,11 +68,10 @@ class EmuEEPROM
     class StorageAccess
     {
         public:
-        virtual bool     init()                                   = 0;
-        virtual uint32_t startAddress(page_t page)                = 0;
-        virtual bool     erasePage(page_t page)                   = 0;
-        virtual bool     write32(uint32_t address, uint32_t data) = 0;
-        virtual bool     read32(uint32_t address, uint32_t& data) = 0;
+        virtual bool init()                                                = 0;
+        virtual bool erasePage(page_t page)                                = 0;
+        virtual bool write32(page_t page, uint32_t address, uint32_t data) = 0;
+        virtual bool read32(page_t page, uint32_t address, uint32_t& data) = 0;
     };
 
     EmuEEPROM(StorageAccess& storageAccess, bool useFactoryPage)
@@ -101,7 +100,7 @@ class EmuEEPROM
     bool                                     _useFactoryPage;
     std::array<uint8_t, MAX_ADDRESS / 8 + 1> _varTransferedArray = {};
     std::array<uint16_t, MAX_ADDRESS>        _eepromCache        = {};
-    uint32_t                                 _nextAddToWrite;
+    uint32_t                                 _nextOffsetToWrite;
 
     bool          isVarTransfered(uint16_t address);
     void          markAsTransfered(uint16_t address);
