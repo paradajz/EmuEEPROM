@@ -1,89 +1,100 @@
-#include "unity/src/unity.h"
-#include "unity/Helpers.h"
+#include "framework/Framework.h"
 #include "EmuEEPROM.h"
 #include <string.h>
 #include <array>
-#include <string>
-#include <vector>
-#include <iostream>
 
 namespace
 {
-    class StorageMock : public EmuEEPROM::StorageAccess
+    class EmuEEPROMTest : public ::testing::Test
     {
-        public:
-        StorageMock() {}
-
-        bool init() override
+        protected:
+        void SetUp()
         {
-            return true;
+            _storageMock.erasePage(EmuEEPROM::page_t::page1);
+            _storageMock.erasePage(EmuEEPROM::page_t::page2);
+            ASSERT_TRUE(_emuEEPROM.init());
+            _storageMock._pageEraseCounter = 0;
         }
 
-        uint32_t startAddress(EmuEEPROM::page_t page) override
+        void TearDown()
+        {}
+
+        class StorageMock : public EmuEEPROM::StorageAccess
         {
-            if (page == EmuEEPROM::page_t::page1)
-                return 0;
-            else
+            public:
+            StorageMock() = default;
+
+            bool init() override
+            {
+                return true;
+            }
+
+            uint32_t startAddress(EmuEEPROM::page_t page) override
+            {
+                if (page == EmuEEPROM::page_t::page1)
+                {
+                    return 0;
+                }
+
                 return EMU_EEPROM_PAGE_SIZE;
-        }
+            }
 
-        bool erasePage(EmuEEPROM::page_t page) override
-        {
-            if (page == EmuEEPROM::page_t::page1)
-                std::fill(pageArray.begin(), pageArray.end() - EMU_EEPROM_PAGE_SIZE, 0xFF);
-            else
-                std::fill(pageArray.begin() + EMU_EEPROM_PAGE_SIZE, pageArray.end(), 0xFF);
+            bool erasePage(EmuEEPROM::page_t page) override
+            {
+                if (page == EmuEEPROM::page_t::page1)
+                {
+                    std::fill(_pageArray.begin(), _pageArray.end() - EMU_EEPROM_PAGE_SIZE, 0xFF);
+                }
+                else
+                {
+                    std::fill(_pageArray.begin() + EMU_EEPROM_PAGE_SIZE, _pageArray.end(), 0xFF);
+                }
 
-            pageEraseCounter++;
+                _pageEraseCounter++;
 
-            return true;
-        }
+                return true;
+            }
 
-        bool write(uint32_t address, uint8_t data) override
-        {
-            // 0->1 transition is not allowed
-            if (data > pageArray.at(address))
-                return false;
+            bool write(uint32_t address, uint8_t data) override
+            {
+                // 0->1 transition is not allowed
+                if (data > _pageArray.at(address))
+                {
+                    return false;
+                }
 
-            pageArray.at(address) = data;
+                _pageArray.at(address) = data;
 
-            return true;
-        }
+                return true;
+            }
 
-        bool read(uint32_t address, uint8_t& data) override
-        {
-            data = pageArray.at(address);
-            return true;
-        }
+            bool read(uint32_t address, uint8_t& data) override
+            {
+                data = _pageArray.at(address);
+                return true;
+            }
 
-        void reset()
-        {
-            std::fill(pageArray.begin(), pageArray.end(), 0xFF);
-        }
+            void reset()
+            {
+                std::fill(_pageArray.begin(), _pageArray.end(), 0xFF);
+            }
 
-        std::array<uint8_t, EMU_EEPROM_PAGE_SIZE * 2> pageArray;
-        size_t                                        pageEraseCounter = 0;
+            std::array<uint8_t, EMU_EEPROM_PAGE_SIZE * 2> _pageArray;
+            size_t                                        _pageEraseCounter = 0;
+        };
+
+        StorageMock _storageMock;
+        EmuEEPROM   _emuEEPROM = EmuEEPROM(_storageMock, false);
     };
-
-    StorageMock storageMock;
-    EmuEEPROM   emuEEPROM(storageMock, false);
 }    // namespace
 
-TEST_SETUP()
-{
-    storageMock.erasePage(EmuEEPROM::page_t::page1);
-    storageMock.erasePage(EmuEEPROM::page_t::page2);
-    TEST_ASSERT(emuEEPROM.init() == true);
-    storageMock.pageEraseCounter = 0;
-}
-
-TEST_CASE(FlashFormat)
+TEST_F(EmuEEPROMTest, FlashFormat)
 {
     // fill flash with junk, run init and verify that all content is cleared
-    for (int i = 0; i < storageMock.pageArray.size(); i++)
-        storageMock.pageArray.at(i) = i;
+    for (int i = 0; i < _storageMock._pageArray.size(); i++)
+        _storageMock._pageArray.at(i) = i;
 
-    emuEEPROM.init();
+    _emuEEPROM.init();
 
     // expect the following:
     // first 4 bytes: status
@@ -91,23 +102,23 @@ TEST_CASE(FlashFormat)
 
     // status for first page should be 0x00
     for (int i = 0; i < 4; i++)
-        TEST_ASSERT_EQUAL_UINT32(0x00, storageMock.pageArray.at(i));
+        ASSERT_EQ(0x00, _storageMock._pageArray.at(i));
 
     for (int i = 4; i < EMU_EEPROM_PAGE_SIZE; i++)
-        TEST_ASSERT_EQUAL_UINT32(0xFF, storageMock.pageArray.at(i));
+        ASSERT_EQ(0xFF, _storageMock._pageArray.at(i));
 
     // status for second page should be 0xFFFFEEEE
     for (int i = EMU_EEPROM_PAGE_SIZE; i < EMU_EEPROM_PAGE_SIZE + 2; i++)
-        TEST_ASSERT_EQUAL_UINT32(0xEE, storageMock.pageArray.at(i));
+        ASSERT_EQ(0xEE, _storageMock._pageArray.at(i));
 
     for (int i = EMU_EEPROM_PAGE_SIZE + 2; i < EMU_EEPROM_PAGE_SIZE + 4; i++)
-        TEST_ASSERT_EQUAL_UINT32(0xFF, storageMock.pageArray.at(i));
+        ASSERT_EQ(0xFF, _storageMock._pageArray.at(i));
 
     for (int i = EMU_EEPROM_PAGE_SIZE + 4; i < EMU_EEPROM_PAGE_SIZE * 2; i++)
-        TEST_ASSERT_EQUAL_UINT32(0xFF, storageMock.pageArray.at(i));
+        ASSERT_EQ(0xFF, _storageMock._pageArray.at(i));
 }
 
-TEST_CASE(Insert)
+TEST_F(EmuEEPROMTest, Insert)
 {
     struct entry_t
     {
@@ -135,11 +146,11 @@ TEST_CASE(Insert)
 
     for (size_t i = 0; i < entry.size(); i++)
     {
-        TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(entry.at(i).index, entry.at(i).text.c_str()));
-        TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::ok, emuEEPROM.read(entry.at(i).index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
+        ASSERT_EQ(EmuEEPROM::writeStatus_t::ok, _emuEEPROM.write(entry.at(i).index, entry.at(i).text.c_str()));
+        ASSERT_EQ(EmuEEPROM::readStatus_t::ok, _emuEEPROM.read(entry.at(i).index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 
         std::string retrievedString = readBuffer;
-        TEST_ASSERT(entry.at(i).text == retrievedString);
+        ASSERT_TRUE(entry.at(i).text == retrievedString);
         memset(readBuffer, 0x00, EMU_EEPROM_PAGE_SIZE);
     }
 
@@ -152,20 +163,20 @@ TEST_CASE(Insert)
 
     for (size_t i = 0; i < entry.size(); i++)
     {
-        TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(entry.at(i).index, entry.at(i).text.c_str()));
-        TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::ok, emuEEPROM.read(entry.at(i).index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
+        ASSERT_EQ(EmuEEPROM::writeStatus_t::ok, _emuEEPROM.write(entry.at(i).index, entry.at(i).text.c_str()));
+        ASSERT_EQ(EmuEEPROM::readStatus_t::ok, _emuEEPROM.read(entry.at(i).index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 
         std::string retrievedString = readBuffer;
-        TEST_ASSERT(entry.at(i).text == retrievedString);
+        ASSERT_TRUE(entry.at(i).text == retrievedString);
         memset(readBuffer, 0x00, EMU_EEPROM_PAGE_SIZE);
     }
 
     // make sure data which isn't written throws noIndex error
     const uint32_t index = 0xBEEF;
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::noIndex, emuEEPROM.read(index, readBuffer, readLength, readLength));
+    ASSERT_EQ(EmuEEPROM::readStatus_t::noIndex, _emuEEPROM.read(index, readBuffer, readLength, readLength));
 }
 
-TEST_CASE(ContentTooLarge)
+TEST_F(EmuEEPROMTest, ContentTooLarge)
 {
     const uint32_t index                            = 0x42FC;
     char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
@@ -175,44 +186,44 @@ TEST_CASE(ContentTooLarge)
     for (size_t i = 0; i < EMU_EEPROM_PAGE_SIZE; i++)
         text += "A";
 
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::pageFull, emuEEPROM.write(index, text.c_str()));
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::noIndex, emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
+    ASSERT_EQ(EmuEEPROM::writeStatus_t::pageFull, _emuEEPROM.write(index, text.c_str()));
+    ASSERT_EQ(EmuEEPROM::readStatus_t::noIndex, _emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 }
 
-TEST_CASE(InvalidPages)
+TEST_F(EmuEEPROMTest, InvalidPages)
 {
     // make sure both pages are in invalid state
-    storageMock.pageArray.at(0)                    = 0xAA;
-    storageMock.pageArray.at(EMU_EEPROM_PAGE_SIZE) = 0xAA;
+    _storageMock._pageArray.at(0)                    = 0xAA;
+    _storageMock._pageArray.at(EMU_EEPROM_PAGE_SIZE) = 0xAA;
 
     const uint32_t index                            = 0x01;
     char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
     uint16_t       readLength                       = 0;
     std::string    text                             = "this is a string";
 
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::noPage, emuEEPROM.write(index, text.c_str()));
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::noPage, emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
+    ASSERT_EQ(EmuEEPROM::writeStatus_t::noPage, _emuEEPROM.write(index, text.c_str()));
+    ASSERT_EQ(EmuEEPROM::readStatus_t::noPage, _emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 }
 
-TEST_CASE(InvalidIndex)
+TEST_F(EmuEEPROMTest, InvalidIndex)
 {
     const uint32_t index                            = 0xFFFFFFFF;
     char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
     uint16_t       readLength                       = 0;
     std::string    text                             = "this is a string";
 
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::writeError, emuEEPROM.write(index, text.c_str()));
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::noIndex, emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
+    ASSERT_EQ(EmuEEPROM::writeStatus_t::writeError, _emuEEPROM.write(index, text.c_str()));
+    ASSERT_EQ(EmuEEPROM::readStatus_t::noIndex, _emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 }
 
-TEST_CASE(InvalidString)
+TEST_F(EmuEEPROMTest, InvalidString)
 {
     const uint32_t index = 0xABCD;
 
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::dataError, emuEEPROM.write(index, nullptr));
+    ASSERT_EQ(EmuEEPROM::writeStatus_t::dataError, _emuEEPROM.write(index, nullptr));
 }
 
-TEST_CASE(DataPersistentAfterInit)
+TEST_F(EmuEEPROMTest, DataPersistentAfterInit)
 {
     const uint32_t index                            = 0xABF4;
     char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
@@ -221,23 +232,23 @@ TEST_CASE(DataPersistentAfterInit)
 
     // insert data, verify its contents, reinit the module and verify it is still present
 
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(index, text.c_str()));
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::ok, emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
+    ASSERT_EQ(EmuEEPROM::writeStatus_t::ok, _emuEEPROM.write(index, text.c_str()));
+    ASSERT_EQ(EmuEEPROM::readStatus_t::ok, _emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 
     std::string retrievedString = readBuffer;
-    TEST_ASSERT(text == retrievedString);
+    ASSERT_TRUE(text == retrievedString);
     memset(readBuffer, 0x00, EMU_EEPROM_PAGE_SIZE);
 
-    emuEEPROM.init();
+    _emuEEPROM.init();
 
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::ok, emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
+    ASSERT_EQ(EmuEEPROM::readStatus_t::ok, _emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 
     retrievedString = readBuffer;
-    TEST_ASSERT(text == retrievedString);
+    ASSERT_TRUE(text == retrievedString);
     memset(readBuffer, 0x00, EMU_EEPROM_PAGE_SIZE);
 }
 
-TEST_CASE(IndexExistsAPI)
+TEST_F(EmuEEPROMTest, IndexExistsAPI)
 {
     // write few indexes and verify that indexExists API returns correct response
     struct entry_t
@@ -263,13 +274,13 @@ TEST_CASE(IndexExistsAPI)
 
     for (size_t i = 0; i < entry.size(); i++)
     {
-        TEST_ASSERT(emuEEPROM.indexExists(entry.at(i).index) == false);
-        TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(entry.at(i).index, entry.at(i).text.c_str()));
-        TEST_ASSERT(emuEEPROM.indexExists(entry.at(i).index) == true);
+        ASSERT_TRUE(_emuEEPROM.indexExists(entry.at(i).index) == false);
+        ASSERT_EQ(EmuEEPROM::writeStatus_t::ok, _emuEEPROM.write(entry.at(i).index, entry.at(i).text.c_str()));
+        ASSERT_TRUE(_emuEEPROM.indexExists(entry.at(i).index) == true);
     }
 }
 
-TEST_CASE(PageTransfer)
+TEST_F(EmuEEPROMTest, PageTransfer)
 {
     const uint32_t index                            = 0xEEEE;
     char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
@@ -279,18 +290,18 @@ TEST_CASE(PageTransfer)
     auto sizeInEEPROM        = EmuEEPROM::entrySize(text.size());
     auto loopsBeforeTransfer = EMU_EEPROM_PAGE_SIZE / sizeInEEPROM;
 
-    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page1) == EmuEEPROM::pageStatus_t::valid);
-    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page2) == EmuEEPROM::pageStatus_t::formatted);
+    ASSERT_TRUE(_emuEEPROM.pageStatus(EmuEEPROM::page_t::page1) == EmuEEPROM::pageStatus_t::valid);
+    ASSERT_TRUE(_emuEEPROM.pageStatus(EmuEEPROM::page_t::page2) == EmuEEPROM::pageStatus_t::formatted);
 
     for (size_t i = 0; i < loopsBeforeTransfer; i++)
-        TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::writeStatus_t::ok, emuEEPROM.write(index, text.c_str()));
+        ASSERT_EQ(EmuEEPROM::writeStatus_t::ok, _emuEEPROM.write(index, text.c_str()));
 
-    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page1) == EmuEEPROM::pageStatus_t::formatted);
-    TEST_ASSERT(emuEEPROM.pageStatus(EmuEEPROM::page_t::page2) == EmuEEPROM::pageStatus_t::valid);
+    ASSERT_TRUE(_emuEEPROM.pageStatus(EmuEEPROM::page_t::page1) == EmuEEPROM::pageStatus_t::formatted);
+    ASSERT_TRUE(_emuEEPROM.pageStatus(EmuEEPROM::page_t::page2) == EmuEEPROM::pageStatus_t::valid);
 
     // content must still be valid after transfer
-    TEST_ASSERT_EQUAL_UINT32(EmuEEPROM::readStatus_t::ok, emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
+    ASSERT_EQ(EmuEEPROM::readStatus_t::ok, _emuEEPROM.read(index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 
     std::string retrievedString = readBuffer;
-    TEST_ASSERT(text == retrievedString);
+    ASSERT_TRUE(text == retrievedString);
 }

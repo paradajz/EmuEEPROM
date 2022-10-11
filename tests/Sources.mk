@@ -1,13 +1,10 @@
 vpath modules/%.cpp ../
 vpath modules/%.c ../
 
-SOURCES_COMMON := \
-modules/unity/src/unity.c
+SOURCES_COMMON :=
 
-#common include dirs
 INCLUDE_DIRS_COMMON := \
 -I"./" \
+-I"../src" \
 -I"./src" \
--I"./unity" \
--I"../modules" \
--I"../src"
+-I"../modules"
