@@ -74,11 +74,10 @@ class EmuEEPROM
         public:
         StorageAccess() = default;
 
-        virtual bool     init()                                = 0;
-        virtual uint32_t startAddress(page_t page)             = 0;
-        virtual bool     erasePage(page_t page)                = 0;
-        virtual bool     write(uint32_t address, uint8_t data) = 0;
-        virtual bool     read(uint32_t address, uint8_t& data) = 0;
+        virtual bool init()                                            = 0;
+        virtual bool erasePage(page_t page)                            = 0;
+        virtual bool write(page_t page, uint32_t offset, uint8_t data) = 0;
+        virtual bool read(page_t page, uint32_t offset, uint8_t& data) = 0;
     };
 
     EmuEEPROM(StorageAccess& storageAccess, bool useFactoryPage)
@@ -120,7 +119,7 @@ class EmuEEPROM
     StorageAccess&            _storageAccess;
     const bool                USE_FACTORY_PAGE;
     static constexpr uint32_t CONTENT_END_MARKER = 0x00;
-    uint32_t                  _nextAddToWrite    = 0;
+    uint32_t                  _nextOffsetToWrite = 0;
 
     // first four bytes are reserved for page status, and next four for first (blank) content marker
     static constexpr uint32_t                                            MAX_INDEXES           = 0xFFFF - 1;
@@ -130,11 +129,11 @@ class EmuEEPROM
     void                    markAsTransfered(uint32_t index);
     bool                    findValidPage(pageOp_t operation, page_t& page);
     writeStatus_t           writeInternal(uint32_t index, const char* data, uint16_t length);
-    bool                    write8(uint32_t address, uint8_t data);
-    bool                    write16(uint32_t address, uint16_t data);
-    bool                    write32(uint32_t address, uint32_t data);
-    std::optional<uint8_t>  read8(uint32_t address);
-    std::optional<uint16_t> read16(uint32_t address);
-    std::optional<uint32_t> read32(uint32_t address);
+    bool                    write8(page_t page, uint32_t offset, uint8_t data);
+    bool                    write16(page_t page, uint32_t offset, uint16_t data);
+    bool                    write32(page_t page, uint32_t offset, uint32_t data);
+    std::optional<uint8_t>  read8(page_t page, uint32_t offset);
+    std::optional<uint16_t> read16(page_t page, uint32_t offset);
+    std::optional<uint32_t> read32(page_t page, uint32_t offset);
     uint16_t                xmodemCRCUpdate(uint16_t crc, char data);
 };

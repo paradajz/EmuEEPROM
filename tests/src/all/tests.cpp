@@ -29,58 +29,51 @@ namespace
                 return true;
             }
 
-            uint32_t startAddress(EmuEEPROM::page_t page) override
-            {
-                if (page == EmuEEPROM::page_t::PAGE_1)
-                {
-                    return 0;
-                }
-
-                return EMU_EEPROM_PAGE_SIZE;
-            }
-
             bool erasePage(EmuEEPROM::page_t page) override
             {
-                if (page == EmuEEPROM::page_t::PAGE_1)
+                if (page == EmuEEPROM::page_t::PAGE_FACTORY)
                 {
-                    std::fill(_pageArray.begin(), _pageArray.end() - EMU_EEPROM_PAGE_SIZE, 0xFF);
-                }
-                else
-                {
-                    std::fill(_pageArray.begin() + EMU_EEPROM_PAGE_SIZE, _pageArray.end(), 0xFF);
+                    return false;
                 }
 
+                std::fill(_pageArray.at(static_cast<uint8_t>(page)).begin(), _pageArray.at(static_cast<uint8_t>(page)).end(), 0xFF);
                 _pageEraseCounter++;
 
                 return true;
             }
 
-            bool write(uint32_t address, uint8_t data) override
+            bool write(EmuEEPROM::page_t page, uint32_t offset, uint8_t data) override
             {
-                // 0->1 transition is not allowed
-                if (data > _pageArray.at(address))
+                if (page == EmuEEPROM::page_t::PAGE_FACTORY)
                 {
                     return false;
                 }
 
-                _pageArray.at(address) = data;
+                // 0->1 transition is not allowed
+                if (data > _pageArray.at(static_cast<uint8_t>(page)).at(offset))
+                {
+                    return false;
+                }
+
+                _pageArray.at(static_cast<uint8_t>(page)).at(offset) = data;
 
                 return true;
             }
 
-            bool read(uint32_t address, uint8_t& data) override
+            bool read(EmuEEPROM::page_t page, uint32_t offset, uint8_t& data) override
             {
-                data = _pageArray.at(address);
+                data = _pageArray.at(static_cast<uint8_t>(page)).at(offset);
                 return true;
             }
 
             void reset()
             {
-                std::fill(_pageArray.begin(), _pageArray.end(), 0xFF);
+                std::fill(_pageArray.at(0).begin(), _pageArray.at(0).end(), 0xFF);
+                std::fill(_pageArray.at(1).begin(), _pageArray.at(1).end(), 0xFF);
             }
 
-            std::array<uint8_t, EMU_EEPROM_PAGE_SIZE * 2> _pageArray;
-            size_t                                        _pageEraseCounter = 0;
+            std::array<std::array<uint8_t, EMU_EEPROM_PAGE_SIZE>, 2> _pageArray;
+            size_t                                                   _pageEraseCounter = 0;
         };
 
         StorageMock _storageMock;
@@ -93,7 +86,10 @@ TEST_F(EmuEEPROMTest, FlashFormat)
     // fill flash with junk, run init and verify that all content is cleared
     for (int i = 0; i < _storageMock._pageArray.size(); i++)
     {
-        _storageMock._pageArray.at(i) = i;
+        for (int j = 0; j < _storageMock._pageArray.at(i).size(); j++)
+        {
+            _storageMock._pageArray.at(i).at(j) = j;
+        }
     }
 
     _emuEEPROM.init();
@@ -105,29 +101,38 @@ TEST_F(EmuEEPROMTest, FlashFormat)
     // status for first page should be 0x00
     for (int i = 0; i < 4; i++)
     {
-        ASSERT_EQ(0x00, _storageMock._pageArray.at(i));
+        ASSERT_EQ(0x00, _storageMock._pageArray.at(0).at(i));
     }
 
     for (int i = 4; i < EMU_EEPROM_PAGE_SIZE; i++)
     {
-        ASSERT_EQ(0xFF, _storageMock._pageArray.at(i));
+        ASSERT_EQ(0xFF, _storageMock._pageArray.at(0).at(i));
     }
 
     // status for second page should be 0xFFFFEEEE
-    for (int i = EMU_EEPROM_PAGE_SIZE; i < EMU_EEPROM_PAGE_SIZE + 2; i++)
+    for (int i = 0; i < 2; i++)
     {
-        ASSERT_EQ(0xEE, _storageMock._pageArray.at(i));
+        ASSERT_EQ(0xEE, _storageMock._pageArray.at(1).at(i));
     }
 
-    for (int i = EMU_EEPROM_PAGE_SIZE + 2; i < EMU_EEPROM_PAGE_SIZE + 4; i++)
+    for (int i = 2; i < 4; i++)
     {
-        ASSERT_EQ(0xFF, _storageMock._pageArray.at(i));
+        ASSERT_EQ(0xFF, _storageMock._pageArray.at(1).at(i));
     }
 
-    for (int i = EMU_EEPROM_PAGE_SIZE + 4; i < EMU_EEPROM_PAGE_SIZE * 2; i++)
+    for (int i = 4; i < _storageMock._pageArray.at(1).size(); i++)
     {
-        ASSERT_EQ(0xFF, _storageMock._pageArray.at(i));
+        ASSERT_EQ(0xFF, _storageMock._pageArray.at(1).at(i));
     }
+}
+
+TEST_F(EmuEEPROMTest, ReadNonExisting)
+{
+    const uint32_t INDEX                            = 0x1234;
+    char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
+    uint16_t       readLength                       = 0;
+
+    ASSERT_EQ(EmuEEPROM::readStatus_t::NO_INDEX, _emuEEPROM.read(INDEX, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
 }
 
 TEST_F(EmuEEPROMTest, Insert)
@@ -207,8 +212,8 @@ TEST_F(EmuEEPROMTest, ContentTooLarge)
 TEST_F(EmuEEPROMTest, InvalidPages)
 {
     // make sure both pages are in invalid state
-    _storageMock._pageArray.at(0)                    = 0xAA;
-    _storageMock._pageArray.at(EMU_EEPROM_PAGE_SIZE) = 0xAA;
+    _storageMock._pageArray.at(0).at(0) = 0xAA;
+    _storageMock._pageArray.at(1).at(0) = 0xAA;
 
     const uint32_t INDEX                            = 0x01;
     char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};

@@ -29,7 +29,7 @@ bool EmuEEPROM::init()
         return false;
     }
 
-    _nextAddToWrite = 0;
+    _nextOffsetToWrite = 0;
 
     auto page1Status = pageStatus(page_t::PAGE_1);
     auto page2Status = pageStatus(page_t::PAGE_2);
@@ -45,7 +45,7 @@ bool EmuEEPROM::init()
             // format page 1 properly
             _storageAccess.erasePage(page_t::PAGE_1);
 
-            if (!write32(_storageAccess.startAddress(page_t::PAGE_1), static_cast<uint32_t>(pageStatus_t::FORMATTED)))
+            if (!write32(page_t::PAGE_1, 0, static_cast<uint32_t>(pageStatus_t::FORMATTED)))
             {
                 return false;
             }
@@ -56,13 +56,13 @@ bool EmuEEPROM::init()
             // again, format page 1 properly
             _storageAccess.erasePage(page_t::PAGE_1);
 
-            if (!write32(_storageAccess.startAddress(page_t::PAGE_1), static_cast<uint32_t>(pageStatus_t::FORMATTED)))
+            if (!write32(page_t::PAGE_1, 0, static_cast<uint32_t>(pageStatus_t::FORMATTED)))
             {
                 return false;
             }
 
             // mark page2 as valid
-            if (!write32(_storageAccess.startAddress(page_t::PAGE_2), static_cast<uint32_t>(pageStatus_t::VALID)))
+            if (!write32(page_t::PAGE_2, 0, static_cast<uint32_t>(pageStatus_t::VALID)))
             {
                 return false;
             }
@@ -101,13 +101,13 @@ bool EmuEEPROM::init()
             // erase page 2
             _storageAccess.erasePage(page_t::PAGE_2);
 
-            if (!write32(_storageAccess.startAddress(page_t::PAGE_2), static_cast<uint32_t>(pageStatus_t::FORMATTED)))
+            if (!write32(page_t::PAGE_2, 0, static_cast<uint32_t>(pageStatus_t::FORMATTED)))
             {
                 return false;
             }
 
             // mark page 1 as valid
-            if (!write32(_storageAccess.startAddress(page_t::PAGE_1), static_cast<uint32_t>(pageStatus_t::VALID)))
+            if (!write32(page_t::PAGE_1, 0, static_cast<uint32_t>(pageStatus_t::VALID)))
             {
                 return false;
             }
@@ -139,7 +139,7 @@ bool EmuEEPROM::init()
             // format page2
             _storageAccess.erasePage(page_t::PAGE_2);
 
-            if (!write32(_storageAccess.startAddress(page_t::PAGE_2), static_cast<uint32_t>(pageStatus_t::FORMATTED)))
+            if (!write32(page_t::PAGE_2, 0, static_cast<uint32_t>(pageStatus_t::FORMATTED)))
             {
                 return false;
             }
@@ -198,7 +198,7 @@ bool EmuEEPROM::format()
     {
         for (uint32_t i = 0; i < EMU_EEPROM_PAGE_SIZE; i += 4)
         {
-            auto retrieved = read32(_storageAccess.startAddress(page_t::PAGE_FACTORY) + i);
+            auto retrieved = read32(page_t::PAGE_FACTORY, i);
 
             if (retrieved == std::nullopt)
             {
@@ -212,7 +212,7 @@ bool EmuEEPROM::format()
                 break;    // empty block, no need to go further
             }
 
-            if (!write32(_storageAccess.startAddress(page_t::PAGE_1) + i, content))
+            if (!write32(page_t::PAGE_1, i, content))
             {
                 return false;
             }
@@ -221,18 +221,18 @@ bool EmuEEPROM::format()
     else
     {
         // set valid status to page1
-        if (!write32(_storageAccess.startAddress(page_t::PAGE_1), static_cast<uint32_t>(pageStatus_t::VALID)))
+        if (!write32(page_t::PAGE_1, 0, static_cast<uint32_t>(pageStatus_t::VALID)))
         {
             return false;
         }
 
-        if (!write32(_storageAccess.startAddress(page_t::PAGE_2), static_cast<uint32_t>(pageStatus_t::FORMATTED)))
+        if (!write32(page_t::PAGE_2, 0, static_cast<uint32_t>(pageStatus_t::FORMATTED)))
         {
             return false;
         }
     }
 
-    _nextAddToWrite = 0;
+    _nextOffsetToWrite = 0;
 
     return true;
 }
@@ -256,26 +256,25 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& le
     memset(data, 0x00, maxLength);
 
     // take into account 4-byte page header
-    const uint32_t START_ADDRESS      = _storageAccess.startAddress(validPage);
-    const uint32_t PAGE_START_ADDRESS = START_ADDRESS + 4;
-    uint32_t       readAddress        = START_ADDRESS + EMU_EEPROM_PAGE_SIZE;
+    const uint32_t PAGE_START_OFFSET = sizeof(pageStatus_t);
+    uint32_t       readOffset        = EMU_EEPROM_PAGE_SIZE;
 
-    auto next = [&readAddress]()
+    auto next = [&readOffset]()
     {
-        readAddress = readAddress - 4;
+        readOffset = readOffset - 4;
     };
 
-    if (_nextAddToWrite)
+    if (_nextOffsetToWrite)
     {
-        //_nextAddToWrite contains next address to which new data will be written
-        // when reading, skip all addresses after that one to speed up the process
-        readAddress = _nextAddToWrite - 4;
+        //_nextOffsetToWrite contains next offset to which new data will be written
+        // when reading, skip all offsets after that one to speed up the process
+        readOffset = _nextOffsetToWrite - 4;
     }
 
-    // check each active page address starting from end
-    while (readAddress > PAGE_START_ADDRESS)
+    // check each active page offset starting from end
+    while (readOffset > PAGE_START_OFFSET)
     {
-        auto retrieved = read32(readAddress);
+        auto retrieved = read32(validPage, readOffset);
 
         if (retrieved == std::nullopt)
         {
@@ -285,7 +284,7 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& le
         if (*retrieved == CONTENT_END_MARKER)
         {
             next();
-            retrieved = read32(readAddress);
+            retrieved = read32(validPage, readOffset);
 
             if (retrieved == std::nullopt)
             {
@@ -299,8 +298,8 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& le
                 // crc (2 bytes)
                 // content (size bytes)
 
-                readAddress -= 2;
-                auto lengthRetrieved = read16(readAddress);
+                readOffset -= 2;
+                auto lengthRetrieved = read16(validPage, readOffset);
 
                 if (lengthRetrieved == std::nullopt)
                 {
@@ -315,15 +314,15 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& le
                     return readStatus_t::BUFFER_TOO_SMALL;
                 }
 
-                readAddress -= 2;
-                auto crcRetrieved = read16(readAddress);
+                readOffset -= 2;
+                auto crcRetrieved = read16(validPage, readOffset);
 
                 if (crcRetrieved == std::nullopt)
                 {
                     return readStatus_t::READ_ERROR;
                 }
 
-                readAddress--;
+                readOffset--;
 
                 uint16_t dataCount = 0;
                 uint16_t crcActual = 0;
@@ -331,7 +330,7 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& le
                 // make sure data is read in correct order
                 for (int i = paddingBytes(length) + length - 1; i >= 0; i--)
                 {
-                    auto content = read8(readAddress - i);
+                    auto content = read8(validPage, readOffset - i);
 
                     if (content == std::nullopt)
                     {
@@ -490,14 +489,12 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint32_t index, const char* da
         return writeStatus_t::NO_PAGE;
     }
 
-    // take into account 4-byte page header
-    const uint32_t START_ADDRESS    = _storageAccess.startAddress(validPage);
-    const uint32_t PAGE_END_ADDRESS = START_ADDRESS + EMU_EEPROM_PAGE_SIZE;
-    uint32_t       writeAddress     = START_ADDRESS + sizeof(pageStatus_t);
+    const uint32_t PAGE_END_OFFSET = EMU_EEPROM_PAGE_SIZE;
+    uint32_t       writeOffset     = sizeof(pageStatus_t);
 
-    auto next = [&writeAddress]()
+    auto next = [&writeOffset]()
     {
-        writeAddress += 4;
+        writeOffset += 4;
     };
 
     auto write = [&]()
@@ -511,7 +508,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint32_t index, const char* da
 
         uint16_t crc = 0x0000;
 
-        if ((PAGE_END_ADDRESS - writeAddress) < entrySize(length))
+        if ((PAGE_END_OFFSET - writeOffset) < entrySize(length))
         {
             return writeStatus_t::PAGE_FULL;
         }
@@ -519,7 +516,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint32_t index, const char* da
         // content
         for (uint16_t i = 0; i < length; i++)
         {
-            if (!write8(writeAddress++, data[i]))
+            if (!write8(validPage, writeOffset++, data[i]))
             {
                 return writeStatus_t::WRITE_ERROR;
             }
@@ -530,7 +527,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint32_t index, const char* da
         // padding
         for (uint16_t i = 0; i < paddingBytes(length); i++)
         {
-            if (!write8(writeAddress++, 0xFF))
+            if (!write8(validPage, writeOffset++, 0xFF))
             {
                 return writeStatus_t::WRITE_ERROR;
             }
@@ -538,65 +535,65 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint32_t index, const char* da
         //
 
         // crc
-        if (!write16(writeAddress, crc))
+        if (!write16(validPage, writeOffset, crc))
         {
             return writeStatus_t::WRITE_ERROR;
         }
 
-        writeAddress += 2;
+        writeOffset += 2;
         //
 
         // size
-        if (!write16(writeAddress, length))
+        if (!write16(validPage, writeOffset, length))
         {
             return writeStatus_t::WRITE_ERROR;
         }
 
-        writeAddress += 2;
+        writeOffset += 2;
         //
 
         // index
-        if (!write32(writeAddress, index))
+        if (!write32(validPage, writeOffset, index))
         {
             return writeStatus_t::WRITE_ERROR;
         }
 
-        writeAddress += 4;
+        writeOffset += 4;
         //
 
         // end marker
-        if (!write32(writeAddress, CONTENT_END_MARKER))
+        if (!write32(validPage, writeOffset, CONTENT_END_MARKER))
         {
             return writeStatus_t::WRITE_ERROR;
         }
 
-        _nextAddToWrite = writeAddress + 4;
+        _nextOffsetToWrite = writeOffset + 4;
         //
 
         return writeStatus_t::OK;
     };
 
-    if (_nextAddToWrite)
+    if (_nextOffsetToWrite)
     {
-        if (_nextAddToWrite >= PAGE_END_ADDRESS)
+        if (_nextOffsetToWrite >= PAGE_END_OFFSET)
         {
             return writeStatus_t::PAGE_FULL;
         }
 
-        if ((_nextAddToWrite + entrySize(length)) >= PAGE_END_ADDRESS)
+        if ((_nextOffsetToWrite + entrySize(length)) >= PAGE_END_OFFSET)
         {
             return writeStatus_t::PAGE_FULL;
         }
 
-        writeAddress = _nextAddToWrite;
+        writeOffset = _nextOffsetToWrite;
 
         return write();
     }
 
     // check each active page address starting from beginning
-    while (writeAddress < PAGE_END_ADDRESS)
+    while (writeOffset < PAGE_END_OFFSET)
     {
-        auto retrieved = read32(writeAddress);
+        auto retrieved = read32(validPage, writeOffset);
 
         if (retrieved == std::nullopt)
         {
@@ -613,7 +610,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint32_t index, const char* da
     }
 
     // no content end marker set - nothing is written yet
-    writeAddress = START_ADDRESS + sizeof(pageStatus_t);
+    writeOffset = sizeof(pageStatus_t);
 
     return write();
 
@@ -622,54 +619,56 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint32_t index, const char* da
 
 EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
 {
-    page_t validPage;
+    page_t oldPage;
+    page_t newPage = page_t::PAGE_1;
 
-    if (!findValidPage(pageOp_t::READ, validPage))
+    if (!findValidPage(pageOp_t::READ, oldPage))
     {
         return writeStatus_t::NO_PAGE;
     }
 
-    _nextAddToWrite = _storageAccess.startAddress(page_t::PAGE_1);
-    page_t oldPage  = page_t::PAGE_1;
-
-    if (validPage == page_t::PAGE_2)
+    if (oldPage == page_t::PAGE_2)
     {
-        // new page address where content will be moved to
-        _nextAddToWrite = _storageAccess.startAddress(page_t::PAGE_1);
+        // new page where content will be moved to
+        newPage = page_t::PAGE_1;
 
         // old page ID where content will be taken from
         oldPage = page_t::PAGE_2;
     }
-    else if (validPage == page_t::PAGE_1)
+    else if (oldPage == page_t::PAGE_1)
     {
-        // new page address where content will be moved to
-        _nextAddToWrite = _storageAccess.startAddress(page_t::PAGE_2);
+        // new page where content will be moved to
+        newPage = page_t::PAGE_2;
 
         // old page ID where content will be taken from
         oldPage = page_t::PAGE_1;
     }
+    else
+    {
+        return writeStatus_t::NO_PAGE;
+    }
 
-    if (!write32(_nextAddToWrite, static_cast<uint32_t>(pageStatus_t::RECEIVING)))
+    if (!write32(newPage, 0, static_cast<uint32_t>(pageStatus_t::RECEIVING)))
     {
         return writeStatus_t::WRITE_ERROR;
     }
 
-    _nextAddToWrite += sizeof(pageStatus_t);
+    _nextOffsetToWrite = sizeof(pageStatus_t);
 
-    if (!write32(_nextAddToWrite, CONTENT_END_MARKER))
+    if (!write32(newPage, _nextOffsetToWrite, CONTENT_END_MARKER))
     {
         return writeStatus_t::WRITE_ERROR;
     }
 
-    _nextAddToWrite += 4;
+    _nextOffsetToWrite += 4;
 
     // move all data from one page to another
     // start from last address
     for (uint32_t i = EMU_EEPROM_PAGE_SIZE - 4; i > 4; i -= 4)
     {
-        uint32_t address = _storageAccess.startAddress(oldPage) + i;
+        uint32_t offset = i;
 
-        auto retrieved = read32(address);
+        auto retrieved = read32(oldPage, offset);
 
         if (retrieved == std::nullopt)
         {
@@ -678,8 +677,8 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
 
         if (*retrieved == CONTENT_END_MARKER)
         {
-            address -= sizeof(CONTENT_END_MARKER);
-            auto indexRetrieved = read32(address);
+            offset -= sizeof(CONTENT_END_MARKER);
+            auto indexRetrieved = read32(oldPage, offset);
 
             if (indexRetrieved == std::nullopt)
             {
@@ -693,23 +692,23 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
                 continue;
             }
 
-            address -= sizeof(uint16_t);
-            auto lengthRetrieved = read16(address);
+            offset -= sizeof(uint16_t);
+            auto lengthRetrieved = read16(oldPage, offset);
 
             if (lengthRetrieved == std::nullopt)
             {
                 return writeStatus_t::DATA_ERROR;
             }
 
-            address -= sizeof(uint16_t);
-            auto crcRetrieved = read16(address);
+            offset -= sizeof(uint16_t);
+            auto crcRetrieved = read16(oldPage, offset);
 
             if (crcRetrieved == std::nullopt)
             {
                 return writeStatus_t::DATA_ERROR;
             }
 
-            address--;
+            offset--;
 
             uint16_t length = *lengthRetrieved;
             uint16_t crc    = *crcRetrieved;
@@ -719,14 +718,14 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
 
             for (int dataIndex = paddingBytes(length) + length - 1; dataIndex >= 0; dataIndex--)
             {
-                auto content = read8(address - dataIndex);
+                auto content = read8(oldPage, offset - dataIndex);
 
                 if (content == std::nullopt)
                 {
                     return writeStatus_t::DATA_ERROR;
                 }
 
-                if (!write8(_nextAddToWrite++, *content))
+                if (!write8(newPage, _nextOffsetToWrite++, *content))
                 {
                     return writeStatus_t::WRITE_ERROR;
                 }
@@ -737,36 +736,36 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
             i -= (entrySize(length) - sizeof(CONTENT_END_MARKER));
 
             // crc
-            if (!write16(_nextAddToWrite, crc))
+            if (!write16(newPage, _nextOffsetToWrite, crc))
             {
                 return writeStatus_t::WRITE_ERROR;
             }
 
-            _nextAddToWrite += 2;
+            _nextOffsetToWrite += 2;
 
             // size
-            if (!write16(_nextAddToWrite, length))
+            if (!write16(newPage, _nextOffsetToWrite, length))
             {
                 return writeStatus_t::WRITE_ERROR;
             }
 
-            _nextAddToWrite += 2;
+            _nextOffsetToWrite += 2;
 
             // index
-            if (!write32(_nextAddToWrite, index))
+            if (!write32(newPage, _nextOffsetToWrite, index))
             {
                 return writeStatus_t::WRITE_ERROR;
             }
 
-            _nextAddToWrite += 4;
+            _nextOffsetToWrite += 4;
 
             // content end marker
-            if (!write32(_nextAddToWrite, CONTENT_END_MARKER))
+            if (!write32(newPage, _nextOffsetToWrite, CONTENT_END_MARKER))
             {
                 return writeStatus_t::WRITE_ERROR;
             }
 
-            _nextAddToWrite += 4;
+            _nextOffsetToWrite += 4;
 
             markAsTransfered(index);
         }
@@ -775,14 +774,13 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
     // format old page
     _storageAccess.erasePage(oldPage);
 
-    if (!write32(_storageAccess.startAddress(oldPage), static_cast<uint32_t>(pageStatus_t::FORMATTED)))
+    if (!write32(oldPage, 0, static_cast<uint32_t>(pageStatus_t::FORMATTED)))
     {
         return writeStatus_t::WRITE_ERROR;
     }
 
     // set new page status to VALID_PAGE status
-    if (!write32(_storageAccess.startAddress(oldPage == page_t::PAGE_1 ? page_t::PAGE_2 : page_t::PAGE_1),
-                 static_cast<uint32_t>(pageStatus_t::VALID)))
+    if (!write32(newPage, 0, static_cast<uint32_t>(pageStatus_t::VALID)))
     {
         return writeStatus_t::WRITE_ERROR;
     }
@@ -802,7 +800,7 @@ EmuEEPROM::pageStatus_t EmuEEPROM::pageStatus(page_t page)
     {
     case page_t::PAGE_1:
     {
-        auto retrieved = read32(_storageAccess.startAddress(page_t::PAGE_1));
+        auto retrieved = read32(page_t::PAGE_1, 0);
 
         if (retrieved == std::nullopt)
         {
@@ -815,7 +813,7 @@ EmuEEPROM::pageStatus_t EmuEEPROM::pageStatus(page_t page)
 
     case page_t::PAGE_2:
     {
-        auto retrieved = read32(_storageAccess.startAddress(page_t::PAGE_2));
+        auto retrieved = read32(page_t::PAGE_2, 0);
 
         if (retrieved == std::nullopt)
         {
@@ -828,7 +826,7 @@ EmuEEPROM::pageStatus_t EmuEEPROM::pageStatus(page_t page)
 
     case page_t::PAGE_FACTORY:
     {
-        auto retrieved = read32(_storageAccess.startAddress(page_t::PAGE_FACTORY));
+        auto retrieved = read32(page_t::PAGE_FACTORY, 0);
 
         if (retrieved == std::nullopt)
         {
@@ -889,16 +887,16 @@ void EmuEEPROM::markAsTransfered(uint32_t index)
     _indexTransferedArray.at(arrayIndex) |= (1UL << varIndex);
 }
 
-bool EmuEEPROM::write8(uint32_t address, uint8_t data)
+bool EmuEEPROM::write8(page_t page, uint32_t offset, uint8_t data)
 {
-    return _storageAccess.write(address, data);
+    return _storageAccess.write(page, offset, data);
 }
 
-bool EmuEEPROM::write16(uint32_t address, uint16_t data)
+bool EmuEEPROM::write16(page_t page, uint32_t offset, uint16_t data)
 {
     for (size_t i = 0; i < sizeof(uint16_t); i++)
     {
-        if (!_storageAccess.write(address + i, static_cast<uint8_t>((data) >> (8 * i) & 0xFF)))
+        if (!_storageAccess.write(page, offset + i, static_cast<uint8_t>((data) >> (8 * i) & 0xFF)))
         {
             return false;
         }
@@ -907,11 +905,11 @@ bool EmuEEPROM::write16(uint32_t address, uint16_t data)
     return true;
 }
 
-bool EmuEEPROM::write32(uint32_t address, uint32_t data)
+bool EmuEEPROM::write32(page_t page, uint32_t offset, uint32_t data)
 {
     for (size_t i = 0; i < sizeof(uint32_t); i++)
     {
-        if (!_storageAccess.write(address + i, static_cast<uint8_t>((data) >> (8 * i) & 0xFF)))
+        if (!_storageAccess.write(page, offset + i, static_cast<uint8_t>((data) >> (8 * i) & 0xFF)))
         {
             return false;
         }
@@ -920,11 +918,11 @@ bool EmuEEPROM::write32(uint32_t address, uint32_t data)
     return true;
 }
 
-std::optional<uint8_t> EmuEEPROM::read8(uint32_t address)
+std::optional<uint8_t> EmuEEPROM::read8(page_t page, uint32_t offset)
 {
     uint8_t data;
 
-    if (_storageAccess.read(address, data))
+    if (_storageAccess.read(page, offset, data))
     {
         return data;
     }
@@ -932,14 +930,14 @@ std::optional<uint8_t> EmuEEPROM::read8(uint32_t address)
     return std::nullopt;
 }
 
-std::optional<uint16_t> EmuEEPROM::read16(uint32_t address)
+std::optional<uint16_t> EmuEEPROM::read16(page_t page, uint32_t offset)
 {
     uint8_t  temp[2] = {};
     uint16_t data    = 0;
 
     for (size_t i = 0; i < 2; i++)
     {
-        auto retrieved = read8(address + i);
+        auto retrieved = read8(page, offset + i);
 
         if (retrieved == std::nullopt)
         {
@@ -956,14 +954,14 @@ std::optional<uint16_t> EmuEEPROM::read16(uint32_t address)
     return data;
 }
 
-std::optional<uint32_t> EmuEEPROM::read32(uint32_t address)
+std::optional<uint32_t> EmuEEPROM::read32(page_t page, uint32_t offset)
 {
     uint8_t  temp[4] = {};
     uint32_t data    = 0;
 
     for (size_t i = 0; i < 4; i++)
     {
-        auto retrieved = read8(address + i);
+        auto retrieved = read8(page, offset + i);
 
         if (retrieved == std::nullopt)
         {
@@ -1019,27 +1017,25 @@ bool EmuEEPROM::indexExists(uint32_t index)
         return false;
     }
 
-    // take into account 4-byte page header
-    const uint32_t START_ADDRESS      = _storageAccess.startAddress(validPage);
-    const uint32_t PAGE_START_ADDRESS = START_ADDRESS + 4;
-    uint32_t       readAddress        = START_ADDRESS + EMU_EEPROM_PAGE_SIZE;
+    const uint32_t PAGE_START_OFFSET = sizeof(pageStatus_t);
+    uint32_t       readOffset        = EMU_EEPROM_PAGE_SIZE - 4;
 
-    auto next = [&readAddress]()
+    auto next = [&readOffset]()
     {
-        readAddress = readAddress - 4;
+        readOffset = readOffset - 4;
     };
 
-    if (_nextAddToWrite)
+    if (_nextOffsetToWrite)
     {
-        //_nextAddToWrite contains next address to which new data will be written
-        // when reading, skip all addresses after that one to speed up the process
-        readAddress = _nextAddToWrite - 4;
+        //_nextOffsetToWrite contains next offset to which new data will be written
+        // when reading, skip all offsets after that one to speed up the process
+        readOffset = _nextOffsetToWrite - 4;
     }
 
-    // check each active page address starting from end
-    while (readAddress > PAGE_START_ADDRESS)
+    // check each active page offset starting from end
+    while (readOffset >= PAGE_START_OFFSET)
     {
-        auto retrieved = read32(readAddress);
+        auto retrieved = read32(validPage, readOffset);
 
         if (retrieved == std::nullopt)
         {
@@ -1049,7 +1045,7 @@ bool EmuEEPROM::indexExists(uint32_t index)
         if (*retrieved == CONTENT_END_MARKER)
         {
             next();
-            retrieved = read32(readAddress);
+            retrieved = read32(validPage, readOffset);
 
             if (retrieved == std::nullopt)
             {
