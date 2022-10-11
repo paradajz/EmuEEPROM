@@ -293,7 +293,7 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
 
     // take into account 4-byte page header
     const uint32_t PAGE_START_OFFSET = sizeof(pageStatus_t);
-    uint32_t       readOffset        = EMU_EEPROM_PAGE_SIZE;
+    uint32_t       readOffset        = EMU_EEPROM_PAGE_SIZE - 4;
 
     auto next = [&readOffset]()
     {
