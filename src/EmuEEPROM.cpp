@@ -546,6 +546,9 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
         return writeStatus_t::WRITE_ERROR;
     }
 
+    // reset written flags
+    std::fill(_varWrittenArray.begin(), _varWrittenArray.end(), 0);
+
     writeStatus_t eepromStatus;
     _nextOffsetToWrite = sizeof(pageStatus_t);
 
@@ -570,7 +573,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
                 return writeStatus_t::WRITE_ERROR;
             }
 
-            if (isVarTransfered(address))
+            if (isVarWritten(address))
             {
                 continue;
             }
@@ -583,7 +586,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
                 return eepromStatus;
             }
 
-            markAsTransfered(address);
+            markAsWritten(address);
         }
     }
 
@@ -600,9 +603,6 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
     {
         return writeStatus_t::WRITE_ERROR;
     }
-
-    // reset transfered flags
-    std::fill(_varTransferedArray.begin(), _varTransferedArray.end(), 0);
 
     return writeStatus_t::OK;
 }
@@ -666,26 +666,26 @@ EmuEEPROM::pageStatus_t EmuEEPROM::pageStatus(page_t page)
     return status;
 }
 
-bool EmuEEPROM::isVarTransfered(uint16_t address)
+bool EmuEEPROM::isVarWritten(uint16_t address)
 {
     uint16_t arrayIndex = address / 8;
     uint16_t varIndex   = address - 8 * arrayIndex;
 
-    return (_varTransferedArray.at(arrayIndex) >> varIndex) & 0x01;
+    return (_varWrittenArray.at(arrayIndex) >> varIndex) & 0x01;
 }
 
-void EmuEEPROM::markAsTransfered(uint16_t address)
+void EmuEEPROM::markAsWritten(uint16_t address)
 {
     uint16_t arrayIndex = address / 8;
     uint16_t varIndex   = address - 8 * arrayIndex;
 
-    _varTransferedArray.at(arrayIndex) |= (1UL << varIndex);
+    _varWrittenArray.at(arrayIndex) |= (1UL << varIndex);
 }
 
 bool EmuEEPROM::cache()
 {
     page_t validPage;
-    std::fill(_varTransferedArray.begin(), _varTransferedArray.end(), 0);
+    std::fill(_varWrittenArray.begin(), _varWrittenArray.end(), 0);
 
     if (!findValidPage(pageOp_t::WRITE, validPage))
     {
@@ -711,18 +711,17 @@ bool EmuEEPROM::cache()
                 return false;
             }
 
-            if (isVarTransfered(address))
+            if (isVarWritten(address))
             {
                 continue;
             }
 
             // copy variable to cache
             _eepromCache[address] = value;
-            markAsTransfered(address);
+            markAsWritten(address);
         }
     }
 
-    std::fill(_varTransferedArray.begin(), _varTransferedArray.end(), 0);
     return true;
 }
 
