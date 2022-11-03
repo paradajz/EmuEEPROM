@@ -347,7 +347,7 @@ EmuEEPROM::readStatus_t EmuEEPROM::readCached(uint32_t address, uint16_t& data)
     return readStatus_t::OK;
 }
 
-EmuEEPROM::writeStatus_t EmuEEPROM::write(uint32_t address, uint16_t data)
+EmuEEPROM::writeStatus_t EmuEEPROM::write(uint32_t address, uint16_t data, bool cacheOnly)
 {
     if (address >= maxAddress())
     {
@@ -357,7 +357,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::write(uint32_t address, uint16_t data)
     writeStatus_t status;
 
     // rite the variable virtual address and value in the EEPROM
-    status = writeInternal(address, data);
+    status = writeInternal(address, data, cacheOnly);
 
     if (status == writeStatus_t::PAGE_FULL)
     {
@@ -440,11 +440,17 @@ bool EmuEEPROM::findValidPage(pageOp_t operation, page_t& page)
     return true;
 }
 
-EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t data)
+EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint16_t address, uint16_t data, bool cacheOnly)
 {
     if (address == 0xFFFF)
     {
         return writeStatus_t::WRITE_ERROR;
+    }
+
+    if (cacheOnly)
+    {
+        _eepromCache[address] = data;
+        return writeStatus_t::OK;
     }
 
     page_t validPage;
@@ -728,4 +734,10 @@ bool EmuEEPROM::cache()
 uint32_t EmuEEPROM::maxAddress() const
 {
     return MAX_ADDRESS;
+}
+
+void EmuEEPROM::writeCacheToFlash()
+{
+    // page transfer will make sure the cache is written out
+    pageTransfer();
 }

@@ -219,3 +219,34 @@ TEST_F(EmuEEPROMTest, PageErase)
     _emuEEPROM.init();
     ASSERT_EQ(0, _storageMock._pageEraseCounter);
 }
+
+TEST_F(EmuEEPROMTest, CachedWrite)
+{
+    uint16_t value;
+
+    ASSERT_EQ(EmuEEPROM::writeStatus_t::OK, _emuEEPROM.write(0, 0x1234, true));
+    ASSERT_EQ(EmuEEPROM::writeStatus_t::OK, _emuEEPROM.write(0, 0x1235, true));
+    ASSERT_EQ(EmuEEPROM::writeStatus_t::OK, _emuEEPROM.write(0, 0x1236, true));
+    ASSERT_EQ(EmuEEPROM::writeStatus_t::OK, _emuEEPROM.write(0, 0x1237, true));
+
+    ASSERT_EQ(EmuEEPROM::readStatus_t::OK, _emuEEPROM.read(0, value));
+
+    // last value should be read
+    ASSERT_EQ(0x1237, value);
+
+    // now init the library again - read should return NO_VAR since the value was written just in cache
+    _emuEEPROM.init();
+
+    ASSERT_EQ(EmuEEPROM::readStatus_t::NO_VAR, _emuEEPROM.read(0, value));
+
+    // write in cache again, but this time,transfer everything to NVM memory
+    ASSERT_EQ(EmuEEPROM::writeStatus_t::OK, _emuEEPROM.write(0, 0x1237, true));
+    ASSERT_EQ(0x1237, value);
+
+    _emuEEPROM.writeCacheToFlash();
+
+    _emuEEPROM.init();
+
+    // after another initialization, read value should be the one that was written
+    ASSERT_EQ(0x1237, value);
+}
