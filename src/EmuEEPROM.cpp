@@ -52,26 +52,9 @@ bool EmuEEPROM::init()
                 return false;
             }
         }
-        else if (page2Status == pageStatus_t::RECEIVING)
-        {
-            // page 1 erased, page 2 in receive state
-            // again, format page 1 properly
-            _storageAccess.erasePage(page_t::PAGE_1);
-
-            if (!_storageAccess.write32(page_t::PAGE_1, 0, static_cast<uint32_t>(pageStatus_t::FORMATTED)))
-            {
-                return false;
-            }
-
-            // mark page2 as valid
-            if (!_storageAccess.write32(page_t::PAGE_2, 0, static_cast<uint32_t>(pageStatus_t::VALID)))
-            {
-                return false;
-            }
-        }
         else
         {
-            // format both pages and set first page as valid
+            // invalid state
             if (!format())
             {
                 return false;
@@ -101,24 +84,8 @@ bool EmuEEPROM::init()
             }
 
             // page has been transfered and with it, all contents have been cached
+            // if that failed, pages have been formatted so no caching is required
             doCache = false;
-        }
-        else if (page2Status == pageStatus_t::ERASED)
-        {
-            // page 1 in receive state, page 2 erased
-            // erase page 2
-            _storageAccess.erasePage(page_t::PAGE_2);
-
-            if (!_storageAccess.write32(page_t::PAGE_2, 0, static_cast<uint32_t>(pageStatus_t::FORMATTED)))
-            {
-                return false;
-            }
-
-            // mark page 1 as valid
-            if (!_storageAccess.write32(page_t::PAGE_1, 0, static_cast<uint32_t>(pageStatus_t::VALID)))
-            {
-                return false;
-            }
         }
         else
         {
@@ -159,7 +126,7 @@ bool EmuEEPROM::init()
         {
             // nothing to do
         }
-        else
+        else if (page2Status == pageStatus_t::RECEIVING)
         {
             // page 1 valid, page 2 in receive state
             // restart the transfer process by first erasing page 2 and then performing page transfer
@@ -175,6 +142,38 @@ bool EmuEEPROM::init()
             }
 
             // page has been transfered and with it, all contents have been cached
+            // if that failed, pages have been formatted so no caching is required
+            doCache = false;
+        }
+        else
+        {
+            // invalid state
+            if (!format())
+            {
+                return false;
+            }
+
+            // caching is done automatically after formatting if possible
+            doCache = false;
+        }
+    }
+    break;
+
+    case pageStatus_t::FORMATTED:
+    {
+        if (page2Status == pageStatus_t::VALID)
+        {
+            // nothing to do
+        }
+        else
+        {
+            // invalid state
+            if (!format())
+            {
+                return false;
+            }
+
+            // caching is done automatically after formatting if possible
             doCache = false;
         }
     }
@@ -182,6 +181,7 @@ bool EmuEEPROM::init()
 
     default:
     {
+        // invalid state
         if (!format())
         {
             return false;

@@ -132,6 +132,11 @@ TEST_F(EmuEEPROMTest, PageTransfer)
     // verify that the second page is active and first one formatted
     ASSERT_EQ(EmuEEPROM::pageStatus_t::VALID, _emuEEPROM.pageStatus(EmuEEPROM::page_t::PAGE_2));
     ASSERT_EQ(EmuEEPROM::pageStatus_t::FORMATTED, _emuEEPROM.pageStatus(EmuEEPROM::page_t::PAGE_1));
+
+    // the states should be preserved after init
+    _emuEEPROM.init();
+    ASSERT_EQ(EmuEEPROM::pageStatus_t::VALID, _emuEEPROM.pageStatus(EmuEEPROM::page_t::PAGE_2));
+    ASSERT_EQ(EmuEEPROM::pageStatus_t::FORMATTED, _emuEEPROM.pageStatus(EmuEEPROM::page_t::PAGE_1));
 }
 
 TEST_F(EmuEEPROMTest, PageTransfer2)
@@ -160,6 +165,21 @@ TEST_F(EmuEEPROMTest, PageTransfer2)
     {
         ASSERT_EQ(EmuEEPROM::writeStatus_t::OK, _emuEEPROM.write(i, 1));
     }
+
+    ASSERT_EQ(EmuEEPROM::pageStatus_t::VALID, _emuEEPROM.pageStatus(EmuEEPROM::page_t::PAGE_2));
+    ASSERT_EQ(EmuEEPROM::pageStatus_t::FORMATTED, _emuEEPROM.pageStatus(EmuEEPROM::page_t::PAGE_1));
+
+    // also verify that the memory contains only updated values
+    for (int i = 0; i < EMU_EEPROM_PAGE_SIZE / 4 - 1; i++)
+    {
+        uint16_t value;
+
+        ASSERT_EQ(EmuEEPROM::readStatus_t::OK, _emuEEPROM.read(i, value));
+        ASSERT_EQ(1, value);
+    }
+
+    // repeat the test after init
+    _emuEEPROM.init();
 
     ASSERT_EQ(EmuEEPROM::pageStatus_t::VALID, _emuEEPROM.pageStatus(EmuEEPROM::page_t::PAGE_2));
     ASSERT_EQ(EmuEEPROM::pageStatus_t::FORMATTED, _emuEEPROM.pageStatus(EmuEEPROM::page_t::PAGE_1));
