@@ -555,44 +555,17 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
     // reset written flags
     std::fill(_varWrittenArray.begin(), _varWrittenArray.end(), 0);
 
-    writeStatus_t eepromStatus;
     _nextOffsetToWrite = sizeof(pageStatus_t);
 
-    // move all variables from one page to another
-    // start from last address
-    for (uint32_t i = EMU_EEPROM_PAGE_SIZE - 4; i >= 4; i -= 4)
+    // normally this procedure should move all variables from one page to another,
+    // starting from the last address
+    // since we're using cache, just dump the entire cache to the new page
+
+    for (size_t i = 0; i < MAX_ADDRESS; i++)
     {
-        uint32_t data;
-
-        if (_storageAccess.read32(oldPage, i, data))
+        if (_eepromCache[i] != 0xFFFF)
         {
-            if (data == 0xFFFFFFFF)
-            {
-                continue;    // blank variable
-            }
-
-            uint16_t value   = data & 0xFFFF;
-            uint16_t address = data >> 16 & 0xFFFF;
-
-            if (address >= maxAddress())
-            {
-                return writeStatus_t::WRITE_ERROR;
-            }
-
-            if (isVarWritten(address))
-            {
-                continue;
-            }
-
-            // move variable to new active page
-            eepromStatus = writeInternal(address, value);
-
-            if (eepromStatus != writeStatus_t::OK)
-            {
-                return eepromStatus;
-            }
-
-            markAsWritten(address);
+            writeInternal(i, _eepromCache[i]);
         }
     }
 
