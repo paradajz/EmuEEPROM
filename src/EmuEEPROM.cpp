@@ -541,9 +541,6 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
         return writeStatus_t::WRITE_ERROR;
     }
 
-    // reset written flags
-    std::fill(_varWrittenArray.begin(), _varWrittenArray.end(), 0);
-
     _nextOffsetToWrite = sizeof(pageStatus_t);
 
     // normally this procedure should move all variables from one page to another,
@@ -634,26 +631,10 @@ EmuEEPROM::pageStatus_t EmuEEPROM::pageStatus(page_t page)
     return status;
 }
 
-bool EmuEEPROM::isVarWritten(uint16_t address)
-{
-    uint16_t arrayIndex = address / 8;
-    uint16_t varIndex   = address - 8 * arrayIndex;
-
-    return (_varWrittenArray.at(arrayIndex) >> varIndex) & 0x01;
-}
-
-void EmuEEPROM::markAsWritten(uint16_t address)
-{
-    uint16_t arrayIndex = address / 8;
-    uint16_t varIndex   = address - 8 * arrayIndex;
-
-    _varWrittenArray.at(arrayIndex) |= (1UL << varIndex);
-}
-
 bool EmuEEPROM::cache()
 {
     page_t validPage;
-    std::fill(_varWrittenArray.begin(), _varWrittenArray.end(), 0);
+    std::fill(_eepromCache.begin(), _eepromCache.end(), 0xFFFF);
 
     if (!findValidPage(pageOp_t::WRITE, validPage))
     {
@@ -679,14 +660,13 @@ bool EmuEEPROM::cache()
                 return false;
             }
 
-            if (isVarWritten(address))
+            if (_eepromCache[address] != 0xFFFF)
             {
                 continue;
             }
 
             // copy variable to cache
             _eepromCache[address] = value;
-            markAsWritten(address);
         }
     }
 

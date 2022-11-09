@@ -95,15 +95,12 @@ class EmuEEPROM
         WRITE
     };
 
-    static constexpr uint32_t                MAX_ADDRESS = (EMU_EEPROM_PAGE_SIZE / 4) - 1;
-    StorageAccess&                           _storageAccess;
-    bool                                     _useFactoryPage;
-    std::array<uint8_t, MAX_ADDRESS / 8 + 1> _varWrittenArray = {};
-    std::array<uint16_t, MAX_ADDRESS>        _eepromCache     = {};
-    uint32_t                                 _nextOffsetToWrite;
+    static constexpr uint32_t         MAX_ADDRESS = (EMU_EEPROM_PAGE_SIZE / 4) - 1;
+    StorageAccess&                    _storageAccess;
+    bool                              _useFactoryPage;
+    std::array<uint16_t, MAX_ADDRESS> _eepromCache = {};
+    uint32_t                          _nextOffsetToWrite;
 
-    bool          isVarWritten(uint16_t address);
-    void          markAsWritten(uint16_t address);
     bool          findValidPage(pageOp_t operation, page_t& page);
     writeStatus_t writeInternal(uint16_t address, uint16_t data, bool cacheOnly = false);
     bool          cache();
