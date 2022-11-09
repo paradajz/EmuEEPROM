@@ -336,17 +336,6 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t address, uint16_t& data)
     return status;
 }
 
-EmuEEPROM::readStatus_t EmuEEPROM::readCached(uint32_t address, uint16_t& data)
-{
-    if (address >= MAX_ADDRESS)
-    {
-        return readStatus_t::NO_VAR;
-    }
-
-    data = _eepromCache[address];
-    return readStatus_t::OK;
-}
-
 EmuEEPROM::writeStatus_t EmuEEPROM::write(uint32_t address, uint16_t data, bool cacheOnly)
 {
     if (address >= maxAddress())
