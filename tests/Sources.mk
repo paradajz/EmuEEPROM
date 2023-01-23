@@ -6,5 +6,4 @@ SOURCES_COMMON :=
 INCLUDE_DIRS_COMMON := \
 -I"./" \
 -I"../src" \
--I"./src" \
--I"../modules"
+-I"./src"
