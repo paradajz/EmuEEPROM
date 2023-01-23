@@ -29,8 +29,11 @@
 #ifdef EMUEEPROM_INCLUDE_CONFIG
 #include "EmuEEPROMConfig.h"
 #else
-#define EMU_EEPROM_PAGE_SIZE 1024
+#define EMU_EEPROM_PAGE_SIZE      1024
+#define EMUEEPROM_WRITE_ALIGNMENT 4
 #endif
+
+static_assert(EMUEEPROM_WRITE_ALIGNMENT % 4 == 0, "Write alignment needs to be multiple of 4");
 
 class EmuEEPROM
 {
@@ -76,11 +79,14 @@ class EmuEEPROM
 
         virtual bool init()                                            = 0;
         virtual bool erasePage(page_t page)                            = 0;
+        virtual bool startWrite(page_t page, uint32_t offset)          = 0;
         virtual bool write(page_t page, uint32_t offset, uint8_t data) = 0;
+        virtual bool endWrite(page_t page)                             = 0;
         virtual bool read(page_t page, uint32_t offset, uint8_t& data) = 0;
     };
 
-    EmuEEPROM(StorageAccess& storageAccess, bool useFactoryPage)
+    EmuEEPROM(StorageAccess& storageAccess,
+              bool           useFactoryPage)
         : _storageAccess(storageAccess)
         , USE_FACTORY_PAGE(useFactoryPage)
     {}
@@ -109,12 +115,19 @@ class EmuEEPROM
         return size + paddingBytes(size) + sizeof(uint16_t) + sizeof(uint16_t) + sizeof(uint32_t) + sizeof(uint32_t);
     }
 
+    static constexpr uint32_t writeOffsetAligned(uint32_t offset)
+    {
+        return offset + EMUEEPROM_WRITE_ALIGNMENT - (offset % EMUEEPROM_WRITE_ALIGNMENT);
+    }
+
     private:
     enum class pageOp_t : uint8_t
     {
         READ,
         WRITE
     };
+
+    bool writePageStatus(page_t page, pageStatus_t status);
 
     StorageAccess&            _storageAccess;
     const bool                USE_FACTORY_PAGE;

@@ -42,6 +42,15 @@ namespace
                 return true;
             }
 
+            bool startWrite(EmuEEPROM::page_t page, uint32_t offset) override
+            {
+                auto alignment = offset % EMUEEPROM_WRITE_ALIGNMENT;
+
+                EXPECT_EQ(0, alignment);
+
+                return true;
+            }
+
             bool write(EmuEEPROM::page_t page, uint32_t offset, uint8_t data) override
             {
                 if (page == EmuEEPROM::page_t::PAGE_FACTORY)
@@ -57,6 +66,11 @@ namespace
 
                 _pageArray.at(static_cast<uint8_t>(page)).at(offset) = data;
 
+                return true;
+            }
+
+            bool endWrite(EmuEEPROM::page_t page) override
+            {
                 return true;
             }
 
