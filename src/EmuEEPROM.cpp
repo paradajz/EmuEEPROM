@@ -613,8 +613,6 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint32_t index, const char* da
     writeOffset = sizeof(pageStatus_t);
 
     return write();
-
-    return writeStatus_t::PAGE_FULL;
 }
 
 EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
