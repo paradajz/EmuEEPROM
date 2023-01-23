@@ -42,7 +42,8 @@ CFLAGS := \
 LDFLAGS := \
 -lglog \
 -pthread \
--lgtest
+-lgtest \
+-no-pie
 
 $(BUILD_DIR)/%.c.o $(BUILD_DIR_BASE)/%.c.o: %.c
 	@mkdir -p $(@D)
