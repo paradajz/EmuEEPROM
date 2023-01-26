@@ -50,26 +50,9 @@ bool EmuEEPROM::init()
                 return false;
             }
         }
-        else if (page2Status == pageStatus_t::RECEIVING)
-        {
-            // page 1 erased, page 2 in receive state
-            // again, format page 1 properly
-            _storageAccess.erasePage(page_t::PAGE_1);
-
-            if (!writePageStatus(page_t::PAGE_1, pageStatus_t::FORMATTED))
-            {
-                return false;
-            }
-
-            // mark page2 as valid
-            if (!writePageStatus(page_t::PAGE_2, pageStatus_t::VALID))
-            {
-                return false;
-            }
-        }
         else
         {
-            // format both pages and set first page as valid
+            // invalid state
             if (!format())
             {
                 return false;
@@ -93,23 +76,6 @@ bool EmuEEPROM::init()
                 {
                     return false;
                 }
-            }
-        }
-        else if (page2Status == pageStatus_t::ERASED)
-        {
-            // page 1 in receive state, page 2 erased
-            // erase page 2
-            _storageAccess.erasePage(page_t::PAGE_2);
-
-            if (!writePageStatus(page_t::PAGE_2, pageStatus_t::FORMATTED))
-            {
-                return false;
-            }
-
-            // mark page 1 as valid
-            if (!writePageStatus(page_t::PAGE_1, pageStatus_t::VALID))
-            {
-                return false;
             }
         }
         else
@@ -148,7 +114,7 @@ bool EmuEEPROM::init()
         {
             // nothing to do
         }
-        else
+        else if (page2Status == pageStatus_t::RECEIVING)
         {
             // page 1 valid, page 2 in receive state
             // restart the transfer process by first erasing page 2 and then performing page transfer
@@ -163,11 +129,37 @@ bool EmuEEPROM::init()
                 }
             }
         }
+        else
+        {
+            // invalid state
+            if (!format())
+            {
+                return false;
+            }
+        }
+    }
+    break;
+
+    case pageStatus_t::FORMATTED:
+    {
+        if (page2Status == pageStatus_t::VALID)
+        {
+            // nothing to do
+        }
+        else
+        {
+            // invalid state
+            if (!format())
+            {
+                return false;
+            }
+        }
     }
     break;
 
     default:
     {
+        // invalid state
         if (!format())
         {
             return false;
