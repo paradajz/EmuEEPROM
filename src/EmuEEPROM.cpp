@@ -256,18 +256,18 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& le
 
     memset(data, 0x00, maxLength);
 
-    uint32_t readOffset = EMU_EEPROM_PAGE_SIZE - 4;
+    uint32_t readOffset = EMU_EEPROM_PAGE_SIZE - sizeof(CONTENT_END_MARKER);
 
-    auto next = [&readOffset]()
+    auto previous = [&readOffset]()
     {
-        readOffset = readOffset - 4;
+        readOffset = readOffset - sizeof(CONTENT_END_MARKER);
     };
 
     if (_nextOffsetToWrite)
     {
         //_nextOffsetToWrite contains next offset to which new data will be written
         // when reading, skip all offsets after that one to speed up the process
-        readOffset = _nextOffsetToWrite - 4;
+        readOffset = _nextOffsetToWrite - sizeof(CONTENT_END_MARKER);
     }
 
     // check each active page offset starting from end
@@ -283,7 +283,7 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& le
 
         if (*retrieved == CONTENT_END_MARKER)
         {
-            next();
+            previous();
             retrieved = read32(validPage, readOffset);
 
             if (retrieved == std::nullopt)
@@ -360,11 +360,11 @@ EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& le
                 return readStatus_t::OK;
             }
 
-            next();
+            previous();
         }
         else
         {
-            next();
+            previous();
         }
     }
 
@@ -490,11 +490,16 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint32_t index, const char* da
     }
 
     const uint32_t PAGE_END_OFFSET = EMU_EEPROM_PAGE_SIZE;
-    uint32_t       writeOffset     = EMUEEPROM_WRITE_ALIGNMENT;
+    uint32_t       writeOffset     = EMU_EEPROM_PAGE_SIZE - sizeof(CONTENT_END_MARKER);
+
+    auto previous = [&]()
+    {
+        writeOffset -= sizeof(CONTENT_END_MARKER);
+    };
 
     auto next = [&]()
     {
-        writeOffset += EMUEEPROM_WRITE_ALIGNMENT;
+        writeOffset += sizeof(CONTENT_END_MARKER);
     };
 
     auto write = [&]()
@@ -600,8 +605,8 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint32_t index, const char* da
         return write();
     }
 
-    // check each active page address starting from beginning
-    while (writeOffset < PAGE_END_OFFSET)
+    // check each active page address starting from end
+    while (writeOffset > EMUEEPROM_WRITE_ALIGNMENT)
     {
         auto retrieved = read32(validPage, writeOffset);
 
@@ -616,7 +621,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint32_t index, const char* da
             return write();
         }
 
-        next();
+        previous();
     }
 
     // no content end marker set - nothing is written yet
@@ -682,7 +687,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
 
     // move all data from one page to another
     // start from last address
-    for (uint32_t i = EMU_EEPROM_PAGE_SIZE - 4; i > 4; i -= 4)
+    for (uint32_t i = EMU_EEPROM_PAGE_SIZE - 4; i > sizeof(pageStatus_t); i -= 4)
     {
         uint32_t offset = i;
 
@@ -1045,18 +1050,18 @@ bool EmuEEPROM::indexExists(uint32_t index)
         return false;
     }
 
-    uint32_t readOffset = EMU_EEPROM_PAGE_SIZE - 4;
+    uint32_t readOffset = EMU_EEPROM_PAGE_SIZE - sizeof(CONTENT_END_MARKER);
 
-    auto next = [&readOffset]()
+    auto previous = [&readOffset]()
     {
-        readOffset = readOffset - 4;
+        readOffset = readOffset - sizeof(CONTENT_END_MARKER);
     };
 
     if (_nextOffsetToWrite)
     {
         //_nextOffsetToWrite contains next offset to which new data will be written
         // when reading, skip all offsets after that one to speed up the process
-        readOffset = _nextOffsetToWrite - 4;
+        readOffset = _nextOffsetToWrite - sizeof(CONTENT_END_MARKER);
     }
 
     // check each active page offset starting from end
@@ -1071,7 +1076,7 @@ bool EmuEEPROM::indexExists(uint32_t index)
 
         if (*retrieved == CONTENT_END_MARKER)
         {
-            next();
+            previous();
             retrieved = read32(validPage, readOffset);
 
             if (retrieved == std::nullopt)
@@ -1084,11 +1089,11 @@ bool EmuEEPROM::indexExists(uint32_t index)
                 return true;
             }
 
-            next();
+            previous();
         }
         else
         {
-            next();
+            previous();
         }
     }
 
