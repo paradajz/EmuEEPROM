@@ -86,7 +86,15 @@ namespace
                 std::fill(_pageArray.at(1).begin(), _pageArray.at(1).end(), 0xFF);
             }
 
-            std::array<std::array<uint8_t, EMU_EEPROM_PAGE_SIZE>, 2> _pageArray;
+            void copyToFactory()
+            {
+                for (size_t i = 0; i < EMU_EEPROM_PAGE_SIZE; i++)
+                {
+                    _pageArray.at(static_cast<size_t>(EmuEEPROM::page_t::PAGE_FACTORY)).at(i) = _pageArray.at(static_cast<size_t>(EmuEEPROM::page_t::PAGE_1)).at(i);
+                }
+            }
+
+            std::array<std::array<uint8_t, EMU_EEPROM_PAGE_SIZE>, 3> _pageArray;
             size_t                                                   _pageEraseCounter = 0;
         };
 
@@ -205,6 +213,28 @@ TEST_F(EmuEEPROMTest, Insert)
     // make sure data which isn't written throws noIndex error
     const uint32_t INDEX = 0xBEEF;
     ASSERT_EQ(EmuEEPROM::readStatus_t::NO_INDEX, _emuEEPROM.read(INDEX, readBuffer, readLength, readLength));
+
+    // now copy everything to factory page
+    _storageMock.copyToFactory();
+    _storageMock.erasePage(EmuEEPROM::page_t::PAGE_1);
+    _storageMock.erasePage(EmuEEPROM::page_t::PAGE_2);
+
+    // create a new EmuEEPROM with factory page
+    EmuEEPROM _emuEEPROM2 = EmuEEPROM(_storageMock, true);
+    ASSERT_TRUE(_emuEEPROM2.init());
+
+    // verify that the new instance has everything copied to page 1
+    for (size_t i = 0; i < entry.size(); i++)
+    {
+        ASSERT_EQ(EmuEEPROM::readStatus_t::OK, _emuEEPROM2.read(entry.at(i).index, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
+
+        std::string retrievedString = readBuffer;
+        ASSERT_TRUE(entry.at(i).text == retrievedString);
+        memset(readBuffer, 0x00, EMU_EEPROM_PAGE_SIZE);
+    }
+
+    // rewrite the first file
+    ASSERT_EQ(EmuEEPROM::writeStatus_t::OK, _emuEEPROM2.write(entry.at(0).index, entry.at(0).text.c_str()));
 }
 
 TEST_F(EmuEEPROMTest, ContentTooLarge)
