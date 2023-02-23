@@ -13,6 +13,8 @@ namespace
             _storageMock.erasePage(EmuEEPROM::page_t::PAGE_1);
             _storageMock.erasePage(EmuEEPROM::page_t::PAGE_2);
             ASSERT_TRUE(_emuEEPROM.init());
+            // both pages should be formatted
+            ASSERT_EQ(2, _storageMock._pageEraseCounter);
             _storageMock._pageEraseCounter = 0;
         }
 
@@ -26,6 +28,7 @@ namespace
 
             bool init() override
             {
+                _pageEraseCounter = 0;
                 return true;
             }
 
@@ -58,8 +61,8 @@ namespace
                     return false;
                 }
 
-                // 0->1 transition is not allowed
-                if (data > _pageArray.at(static_cast<uint8_t>(page)).at(offset))
+                // value must be erased
+                if (_pageArray.at(static_cast<uint8_t>(page)).at(offset) != 0xFF)
                 {
                     return false;
                 }
@@ -102,51 +105,6 @@ namespace
         EmuEEPROM   _emuEEPROM = EmuEEPROM(_storageMock, false);
     };
 }    // namespace
-
-TEST_F(EmuEEPROMTest, FlashFormat)
-{
-    // fill flash with junk, run init and verify that all content is cleared
-    for (int i = 0; i < _storageMock._pageArray.size(); i++)
-    {
-        for (int j = 0; j < _storageMock._pageArray.at(i).size(); j++)
-        {
-            _storageMock._pageArray.at(i).at(j) = j;
-        }
-    }
-
-    _emuEEPROM.init();
-
-    // expect the following:
-    // first 4 bytes: status
-    // rest: 0xFF
-
-    // status for first page should be 0x00
-    for (int i = 0; i < 4; i++)
-    {
-        ASSERT_EQ(0x00, _storageMock._pageArray.at(0).at(i));
-    }
-
-    for (int i = 4; i < EMU_EEPROM_PAGE_SIZE; i++)
-    {
-        ASSERT_EQ(0xFF, _storageMock._pageArray.at(0).at(i));
-    }
-
-    // status for second page should be 0xFFFFEEEE
-    for (int i = 0; i < 2; i++)
-    {
-        ASSERT_EQ(0xEE, _storageMock._pageArray.at(1).at(i));
-    }
-
-    for (int i = 2; i < 4; i++)
-    {
-        ASSERT_EQ(0xFF, _storageMock._pageArray.at(1).at(i));
-    }
-
-    for (int i = 4; i < _storageMock._pageArray.at(1).size(); i++)
-    {
-        ASSERT_EQ(0xFF, _storageMock._pageArray.at(1).at(i));
-    }
-}
 
 TEST_F(EmuEEPROMTest, ReadNonExisting)
 {
@@ -256,8 +214,8 @@ TEST_F(EmuEEPROMTest, ContentTooLarge)
 TEST_F(EmuEEPROMTest, InvalidPages)
 {
     // make sure both pages are in invalid state
-    _storageMock._pageArray.at(0).at(0) = 0xAA;
-    _storageMock._pageArray.at(1).at(0) = 0xAA;
+    _storageMock._pageArray.at(0).at(0) = 0x00;
+    _storageMock._pageArray.at(1).at(0) = 0x01;
 
     const uint32_t INDEX                            = 0x01;
     char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
@@ -353,7 +311,7 @@ TEST_F(EmuEEPROMTest, PageTransfer)
     auto sizeInEEPROM        = EmuEEPROM::entrySize(text.size());
     auto loopsBeforeTransfer = EMU_EEPROM_PAGE_SIZE / sizeInEEPROM;
 
-    ASSERT_TRUE(_emuEEPROM.pageStatus(EmuEEPROM::page_t::PAGE_1) == EmuEEPROM::pageStatus_t::VALID);
+    ASSERT_TRUE(_emuEEPROM.pageStatus(EmuEEPROM::page_t::PAGE_1) == EmuEEPROM::pageStatus_t::ACTIVE);
     ASSERT_TRUE(_emuEEPROM.pageStatus(EmuEEPROM::page_t::PAGE_2) == EmuEEPROM::pageStatus_t::FORMATTED);
 
     for (size_t i = 0; i < loopsBeforeTransfer; i++)
@@ -362,7 +320,7 @@ TEST_F(EmuEEPROMTest, PageTransfer)
     }
 
     ASSERT_TRUE(_emuEEPROM.pageStatus(EmuEEPROM::page_t::PAGE_1) == EmuEEPROM::pageStatus_t::FORMATTED);
-    ASSERT_TRUE(_emuEEPROM.pageStatus(EmuEEPROM::page_t::PAGE_2) == EmuEEPROM::pageStatus_t::VALID);
+    ASSERT_TRUE(_emuEEPROM.pageStatus(EmuEEPROM::page_t::PAGE_2) == EmuEEPROM::pageStatus_t::ACTIVE);
 
     // content must still be valid after transfer
     ASSERT_EQ(EmuEEPROM::readStatus_t::OK, _emuEEPROM.read(INDEX, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));

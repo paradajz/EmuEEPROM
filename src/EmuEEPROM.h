@@ -38,12 +38,13 @@ static_assert(EMUEEPROM_WRITE_ALIGNMENT % 4 == 0, "Write alignment needs to be m
 class EmuEEPROM
 {
     public:
-    enum class pageStatus_t : uint32_t
+    enum class pageStatus_t : uint64_t
     {
-        VALID     = 0x00,          ///< Page containing valid data
-        ERASED    = 0xFFFFFFFF,    ///< Page is empty
-        FORMATTED = 0xFFFFEEEE,    ///< Page is prepared for use but currently unused
-        RECEIVING = 0xEEEEEEEE     ///< Page is marked to receive data
+        ERASED,
+        FORMATTED,
+        ACTIVE,
+        FULL,
+        RECEIVE,
     };
 
     enum class readStatus_t : uint8_t
@@ -131,8 +132,11 @@ class EmuEEPROM
 
     StorageAccess&            _storageAccess;
     const bool                USE_FACTORY_PAGE;
-    static constexpr uint32_t CONTENT_END_MARKER = 0x00;
-    uint32_t                  _nextOffsetToWrite = 0;
+    static constexpr uint32_t CONTENT_END_MARKER    = 0x00;
+    static constexpr uint64_t PAGE_MARKER_ERASED    = 0xFFFFFFFFFFFFFFFF;
+    static constexpr uint64_t PAGE_MARKER_PROGRAMED = 0xAAAAAAAAAAAAAAAA;
+    static constexpr uint32_t PAGE_END_OFFSET       = EMU_EEPROM_PAGE_SIZE;
+    static constexpr size_t   PAGE_STATUS_BYTES     = 32;
 
     // first four bytes are reserved for page status, and next four for first (blank) content marker
     static constexpr uint32_t                                            MAX_INDEXES           = 0xFFFF - 1;
@@ -151,4 +155,7 @@ class EmuEEPROM
     std::optional<uint32_t> read32(page_t page, uint32_t offset);
     std::optional<uint64_t> read64(page_t page, uint32_t offset);
     uint16_t                xmodemCRCUpdate(uint16_t crc, char data);
+    bool                    erasePage(page_t page);
+    writeStatus_t           copyFromFactory();
+    std::optional<uint32_t> nextOffsetToWrite(page_t page);
 };
