@@ -328,3 +328,26 @@ TEST_F(EmuEEPROMTest, PageTransfer)
     std::string retrievedString = readBuffer;
     ASSERT_TRUE(text == retrievedString);
 }
+
+TEST_F(EmuEEPROMTest, MultiplePageTransfer)
+{
+    const uint32_t INDEX                            = 0xEEEE;
+    char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
+    uint16_t       readLength                       = 0;
+    std::string    text                             = "page transfer";
+
+    auto         sizeInEEPROM        = EmuEEPROM::entrySize(text.size());
+    auto         loopsBeforeTransfer = EMU_EEPROM_PAGE_SIZE / sizeInEEPROM;
+    const size_t TRANSFERS           = loopsBeforeTransfer * 4;
+
+    for (size_t i = 0; i < TRANSFERS; i++)
+    {
+        ASSERT_EQ(EmuEEPROM::writeStatus_t::OK, _emuEEPROM.write(INDEX, text.c_str()));
+    }
+
+    // content must still be valid after transfer
+    ASSERT_EQ(EmuEEPROM::readStatus_t::OK, _emuEEPROM.read(INDEX, readBuffer, readLength, EMU_EEPROM_PAGE_SIZE));
+
+    std::string retrievedString = readBuffer;
+    ASSERT_TRUE(text == retrievedString);
+}
