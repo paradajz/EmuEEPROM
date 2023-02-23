@@ -951,6 +951,19 @@ bool EmuEEPROM::write32(page_t page, uint32_t offset, uint32_t data)
     return true;
 }
 
+bool EmuEEPROM::write64(page_t page, uint32_t offset, uint64_t data)
+{
+    for (size_t i = 0; i < sizeof(uint64_t); i++)
+    {
+        if (!_storageAccess.write(page, offset + i, static_cast<uint8_t>((data) >> (8 * i) & 0xFF)))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 std::optional<uint8_t> EmuEEPROM::read8(page_t page, uint32_t offset)
 {
     uint8_t data;
@@ -1005,6 +1018,42 @@ std::optional<uint32_t> EmuEEPROM::read32(page_t page, uint32_t offset)
     }
 
     data = temp[3];
+    data <<= 8;
+    data |= temp[2];
+    data <<= 8;
+    data |= temp[1];
+    data <<= 8;
+    data |= temp[0];
+
+    return data;
+}
+
+std::optional<uint64_t> EmuEEPROM::read64(page_t page, uint32_t offset)
+{
+    uint8_t  temp[8] = {};
+    uint64_t data    = 0;
+
+    for (size_t i = 0; i < 8; i++)
+    {
+        auto retrieved = read8(page, offset + i);
+
+        if (retrieved == std::nullopt)
+        {
+            return std::nullopt;
+        }
+
+        temp[i] = *retrieved;
+    }
+
+    data = temp[7];
+    data <<= 8;
+    data |= temp[6];
+    data <<= 8;
+    data |= temp[5];
+    data <<= 8;
+    data |= temp[4];
+    data <<= 8;
+    data |= temp[3];
     data <<= 8;
     data |= temp[2];
     data <<= 8;

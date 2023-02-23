@@ -145,8 +145,10 @@ class EmuEEPROM
     bool                    write8(page_t page, uint32_t offset, uint8_t data);
     bool                    write16(page_t page, uint32_t offset, uint16_t data);
     bool                    write32(page_t page, uint32_t offset, uint32_t data);
+    bool                    write64(page_t page, uint32_t offset, uint64_t data);
     std::optional<uint8_t>  read8(page_t page, uint32_t offset);
     std::optional<uint16_t> read16(page_t page, uint32_t offset);
     std::optional<uint32_t> read32(page_t page, uint32_t offset);
+    std::optional<uint64_t> read64(page_t page, uint32_t offset);
     uint16_t                xmodemCRCUpdate(uint16_t crc, char data);
 };
