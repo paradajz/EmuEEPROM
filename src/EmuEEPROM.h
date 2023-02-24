@@ -102,7 +102,7 @@ class EmuEEPROM
 
     static constexpr uint8_t paddingBytes(uint16_t size)
     {
-        return ((4 - size % 4) % 4);
+        return ((PAD_CONTENT_TO_BYTES - size % 4) % PAD_CONTENT_TO_BYTES);
     }
 
     static constexpr uint32_t entrySize(uint16_t size = 1)
@@ -113,7 +113,7 @@ class EmuEEPROM
         // size of data (uint16_t)
         // index (uint32_t)
         // content end marker (uint32_t)
-        return size + paddingBytes(size) + sizeof(uint16_t) + sizeof(uint16_t) + sizeof(uint32_t) + sizeof(uint32_t);
+        return size + paddingBytes(size) + CONTENT_METADATA_SIZE;
     }
 
     static constexpr uint32_t writeOffsetAligned(uint32_t offset)
@@ -137,6 +137,9 @@ class EmuEEPROM
     static constexpr uint64_t PAGE_MARKER_PROGRAMED = 0xAAAAAAAAAAAAAAAA;
     static constexpr uint32_t PAGE_END_OFFSET       = EMU_EEPROM_PAGE_SIZE;
     static constexpr size_t   PAGE_STATUS_BYTES     = 32;
+    static constexpr uint8_t  PAD_CONTENT_TO_BYTES  = 4;
+    static constexpr uint8_t  CONTENT_METADATA_SIZE = sizeof(uint16_t) + sizeof(uint16_t) + sizeof(uint32_t) + sizeof(uint32_t);
+    static constexpr uint32_t INVALID_INDEX         = 0xFFFFFFFF;
 
     // first four bytes are reserved for page status, and next four for first (blank) content marker
     static constexpr uint32_t                                            MAX_INDEXES           = 0xFFFF - 1;

@@ -458,7 +458,7 @@ EmuEEPROM::writeStatus_t EmuEEPROM::copyFromFactory()
 
 EmuEEPROM::readStatus_t EmuEEPROM::read(uint32_t index, char* data, uint16_t& length, const uint16_t maxLength)
 {
-    if (index == 0xFFFFFFFF)
+    if (index == INVALID_INDEX)
     {
         return readStatus_t::NO_INDEX;
     }
@@ -684,7 +684,7 @@ bool EmuEEPROM::findValidPage(pageOp_t operation, page_t& page)
 
 EmuEEPROM::writeStatus_t EmuEEPROM::writeInternal(uint32_t index, const char* data, uint16_t length)
 {
-    if (index == 0xFFFFFFFF)
+    if (index == INVALID_INDEX)
     {
         return writeStatus_t::WRITE_ERROR;
     }
@@ -1217,7 +1217,7 @@ uint16_t EmuEEPROM::xmodemCRCUpdate(uint16_t crc, char data)
 
 bool EmuEEPROM::indexExists(uint32_t index)
 {
-    if (index == 0xFFFFFFFF)
+    if (index == INVALID_INDEX)
     {
         return false;
     }
