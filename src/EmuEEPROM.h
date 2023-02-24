@@ -128,8 +128,6 @@ class EmuEEPROM
         WRITE
     };
 
-    bool writePageStatus(page_t page, pageStatus_t status);
-
     StorageAccess&            _storageAccess;
     const bool                USE_FACTORY_PAGE;
     static constexpr uint32_t CONTENT_END_MARKER    = 0x00;
@@ -145,6 +143,7 @@ class EmuEEPROM
     static constexpr uint32_t                                            MAX_INDEXES           = 0xFFFF - 1;
     std::array<uint32_t, (MAX_INDEXES / 32) + ((MAX_INDEXES % 32) != 0)> _indexTransferedArray = {};
 
+    bool                    writePageStatus(page_t page, pageStatus_t status);
     bool                    isIndexTransfered(uint32_t index);
     void                    markAsTransfered(uint32_t index);
     bool                    findValidPage(pageOp_t operation, page_t& page);
