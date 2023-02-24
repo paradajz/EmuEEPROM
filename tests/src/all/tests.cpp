@@ -108,7 +108,7 @@ namespace
 
 TEST_F(EmuEEPROMTest, ReadNonExisting)
 {
-    const uint32_t INDEX                            = 0x1234;
+    const uint32_t INDEX                            = 0x12344321;
     char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
     uint16_t       readLength                       = 0;
 
@@ -169,7 +169,7 @@ TEST_F(EmuEEPROMTest, Insert)
     }
 
     // make sure data which isn't written throws noIndex error
-    const uint32_t INDEX = 0xBEEF;
+    const uint32_t INDEX = 0xBEEFDEAD;
     ASSERT_EQ(EmuEEPROM::readStatus_t::NO_INDEX, _emuEEPROM.read(INDEX, readBuffer, readLength, readLength));
 
     // now copy everything to factory page
@@ -197,7 +197,7 @@ TEST_F(EmuEEPROMTest, Insert)
 
 TEST_F(EmuEEPROMTest, ContentTooLarge)
 {
-    const uint32_t INDEX                            = 0x42FC;
+    const uint32_t INDEX                            = 0x42FC42FC;
     char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
     uint16_t       readLength                       = 0;
     std::string    text;
@@ -239,14 +239,14 @@ TEST_F(EmuEEPROMTest, InvalidIndex)
 
 TEST_F(EmuEEPROMTest, InvalidString)
 {
-    const uint32_t INDEX = 0xABCD;
+    const uint32_t INDEX = 0xABCDDC54;
 
     ASSERT_EQ(EmuEEPROM::writeStatus_t::DATA_ERROR, _emuEEPROM.write(INDEX, nullptr));
 }
 
 TEST_F(EmuEEPROMTest, DataPersistentAfterInit)
 {
-    const uint32_t INDEX                            = 0xABF4;
+    const uint32_t INDEX                            = 0xABF4210;
     char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
     uint16_t       readLength                       = 0;
     std::string    text                             = "DataPersistentAfterInit";
@@ -303,7 +303,7 @@ TEST_F(EmuEEPROMTest, IndexExistsAPI)
 
 TEST_F(EmuEEPROMTest, PageTransfer)
 {
-    const uint32_t INDEX                            = 0xEEEE;
+    const uint32_t INDEX                            = 0xEEEEFFFF;
     char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
     uint16_t       readLength                       = 0;
     std::string    text                             = "page transfer";
@@ -331,7 +331,7 @@ TEST_F(EmuEEPROMTest, PageTransfer)
 
 TEST_F(EmuEEPROMTest, MultiplePageTransfer)
 {
-    const uint32_t INDEX                            = 0xEEEE;
+    const uint32_t INDEX                            = 1515845;
     char           readBuffer[EMU_EEPROM_PAGE_SIZE] = {};
     uint16_t       readLength                       = 0;
     std::string    text                             = "page transfer";
