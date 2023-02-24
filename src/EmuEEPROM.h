@@ -139,9 +139,11 @@ class EmuEEPROM
     static constexpr uint8_t  CONTENT_METADATA_SIZE = sizeof(uint16_t) + sizeof(uint16_t) + sizeof(uint32_t) + sizeof(uint32_t);
     static constexpr uint32_t INVALID_INDEX         = 0xFFFFFFFF;
 
-    // first four bytes are reserved for page status, and next four for first (blank) content marker
-    static constexpr uint32_t                                            MAX_INDEXES           = 0xFFFF - 1;
-    std::array<uint32_t, (MAX_INDEXES / 32) + ((MAX_INDEXES % 32) != 0)> _indexTransferedArray = {};
+    // Calculate the max amount of strings which can be stored in a page and use it to create an array
+    // in which transfered indexes will be stored during page transfer. When performing page transfer,
+    // transfered index must be stored in RAM so that it's transfered only once (the latest version).
+    static constexpr uint32_t         MAX_STRINGS           = (EMU_EEPROM_PAGE_SIZE - PAGE_STATUS_BYTES) / (PAD_CONTENT_TO_BYTES + CONTENT_METADATA_SIZE);
+    std::array<uint32_t, MAX_STRINGS> _indexTransferedArray = {};
 
     bool                    writePageStatus(page_t page, pageStatus_t status);
     bool                    isIndexTransfered(uint32_t index);
@@ -160,4 +162,5 @@ class EmuEEPROM
     bool                    erasePage(page_t page);
     writeStatus_t           copyFromFactory();
     std::optional<uint32_t> nextOffsetToWrite(page_t page);
+    void                    resetTransferedIndexes();
 };

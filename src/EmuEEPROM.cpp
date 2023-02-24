@@ -24,6 +24,8 @@
 
 bool EmuEEPROM::init()
 {
+    resetTransferedIndexes();
+
     if (!_storageAccess.init())
     {
         return false;
@@ -1028,26 +1030,34 @@ EmuEEPROM::writeStatus_t EmuEEPROM::pageTransfer()
         return writeStatus_t::WRITE_ERROR;
     }
 
-    // reset transfered flags
-    std::fill(_indexTransferedArray.begin(), _indexTransferedArray.end(), 0);
+    resetTransferedIndexes();
 
     return writeStatus_t::OK;
 }
 
 bool EmuEEPROM::isIndexTransfered(uint32_t index)
 {
-    uint32_t arrayIndex = index / 32;
-    uint32_t varIndex   = index - 32 * arrayIndex;
+    for (size_t i = 0; i < MAX_STRINGS; i++)
+    {
+        if (_indexTransferedArray.at(i) == index)
+        {
+            return true;
+        }
+    }
 
-    return (_indexTransferedArray.at(arrayIndex) >> varIndex) & 0x01;
+    return false;
 }
 
 void EmuEEPROM::markAsTransfered(uint32_t index)
 {
-    uint32_t arrayIndex = index / 32;
-    uint32_t varIndex   = index - 32 * arrayIndex;
-
-    _indexTransferedArray.at(arrayIndex) |= (1UL << varIndex);
+    for (size_t i = 0; i < MAX_STRINGS; i++)
+    {
+        if (_indexTransferedArray.at(i) == INVALID_INDEX)
+        {
+            _indexTransferedArray.at(i) = index;
+            break;
+        }
+    }
 }
 
 bool EmuEEPROM::write8(page_t page, uint32_t offset, uint8_t data)
@@ -1443,4 +1453,9 @@ bool EmuEEPROM::erasePage(page_t page)
     }
 
     return true;
+}
+
+void EmuEEPROM::resetTransferedIndexes()
+{
+    std::fill(_indexTransferedArray.begin(), _indexTransferedArray.end(), INVALID_INDEX);
 }
