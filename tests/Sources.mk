@@ -5,5 +5,5 @@ SOURCES_COMMON :=
 
 INCLUDE_DIRS_COMMON := \
 -I"./" \
--I"../src" \
+-I"../src/include" \
 -I"./src"

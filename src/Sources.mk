@@ -1,3 +1,6 @@
+INCLUDE_DIRS += \
+-I"include"
+
 SOURCES := $(shell find . -regex '.*\.\(cpp\|c\)')
 
 #make sure all objects are located in build directory

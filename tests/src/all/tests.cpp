@@ -1,5 +1,5 @@
 #include "framework/Framework.h"
-#include "EmuEEPROM.h"
+#include "EmuEEPROM/EmuEEPROM.h"
 #include <string.h>
 #include <array>
 
