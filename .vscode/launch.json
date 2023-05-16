@@ -8,7 +8,7 @@
             "name": "Test",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/tests/build/test.out",
+            "program": "${workspaceFolder}/build/tests/src/test/test",
             "args": [],
             "stopAtEntry": false,
             "environment": [],
@@ -22,7 +22,7 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "[Test] Build single test"
+            "preLaunchTask": "[Build] Tests"
         }
     ]
 }
