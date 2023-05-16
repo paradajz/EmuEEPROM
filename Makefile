@@ -7,7 +7,10 @@ CF_FAIL_ON_DIFF   := 0
 lib:
 	@mkdir -p $(BUILD_DIR_BASE) && \
 	cd $(BUILD_DIR_BASE) && \
-	cmake .. -DCMAKE_BUILD_TYPE=Debug && \
+	cmake .. \
+	-DCMAKE_BUILD_TYPE=Debug \
+	-DBUILD_TESTING=ON \
+	&& \
 	make
 
 test: lib

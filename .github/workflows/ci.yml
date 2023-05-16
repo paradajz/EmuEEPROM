@@ -41,11 +41,7 @@ jobs:
           sudo ldconfig
       - name: Build library
         run: |
-          mkdir -p build
-          cd build
-          cmake ..
           make
       - name: Run tests
         run: |
-          cd build/tests
-          ctest
+          make test
