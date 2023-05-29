@@ -25,7 +25,7 @@
 #include <stdio.h>
 #include <array>
 
-#ifdef EMUEEPROM_INCLUDE_CONFIG
+#ifdef EMU_EEPROM_INCLUDE_CONFIG
 #include "EmuEEPROMConfig.h"
 #else
 #define EMU_EEPROM_PAGE_SIZE 1024
