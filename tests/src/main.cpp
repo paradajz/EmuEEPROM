@@ -1,4 +1,4 @@
-#include "framework/Framework.h"
+#include "tests/Common.h"
 
 int main(int argc, char* argv[])
 {

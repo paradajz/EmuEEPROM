@@ -1,6 +1,5 @@
-#include "framework/Framework.h"
+#include "tests/Common.h"
 #include "EmuEEPROM/EmuEEPROM.h"
-#include <string.h>
 #include <array>
 
 namespace
