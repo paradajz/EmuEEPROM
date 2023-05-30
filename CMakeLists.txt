@@ -16,6 +16,6 @@ target_include_directories(emueeprom
     include
 )
 
-if (BUILD_TESTING STREQUAL ON)
+if (EMU_EEPROM_TESTS STREQUAL ON)
     add_subdirectory(tests)
 endif()

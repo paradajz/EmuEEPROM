@@ -9,7 +9,7 @@ lib:
 	cd $(BUILD_DIR_BASE) && \
 	cmake .. \
 	-DCMAKE_BUILD_TYPE=Debug \
-	-DBUILD_TESTING=ON \
+	-DEMU_EEPROM_TESTS=ON \
 	&& \
 	make
 
