@@ -25,10 +25,8 @@
 #include <stdio.h>
 #include <array>
 
-#ifdef EMU_EEPROM_INCLUDE_CONFIG
-#include "EmuEEPROMConfig.h"
-#else
-#define EMU_EEPROM_PAGE_SIZE 1024
+#ifndef EMU_EEPROM_PAGE_SIZE
+#error EMU_EEPROM_PAGE_SIZE not defined!
 #endif
 
 class EmuEEPROM

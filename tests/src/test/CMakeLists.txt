@@ -15,12 +15,7 @@ target_compile_definitions(test
 
 target_compile_definitions(emueeprom
     PUBLIC
-    EMU_EEPROM_INCLUDE_CONFIG
-)
-
-target_include_directories(emueeprom
-    PUBLIC
-    ${CMAKE_CURRENT_LIST_DIR}
+    EMU_EEPROM_PAGE_SIZE=128
 )
 
 add_test(
