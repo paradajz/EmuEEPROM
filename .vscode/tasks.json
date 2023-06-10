@@ -3,7 +3,7 @@
     "tasks": [
         {
             "label": "[Build] Tests",
-            "command": "make test",
+            "command": "make all",
             "type": "shell",
             "problemMatcher": [
                 "$gcc"

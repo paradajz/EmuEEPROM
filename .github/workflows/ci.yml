@@ -39,9 +39,15 @@ jobs:
           cd ../ && \
           rm -rf glog && \
           sudo ldconfig
+      - name: Check formatting
+        run: |
+          make format
       - name: Build library
         run: |
-          make
+          make lib
+      - name: Lint
+        run: |
+          make lint
       - name: Run tests
         run: |
           make test

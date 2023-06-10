@@ -1,43 +1,35 @@
 ROOT_MAKEFILE_DIR := $(realpath $(dir $(realpath $(lastword $(MAKEFILE_LIST)))))
 BUILD_DIR_BASE    := $(ROOT_MAKEFILE_DIR)/build
-SCRIPTS_DIR       := $(ROOT_MAKEFILE_DIR)/scripts
-CLANG_TIDY_OUT    := $(BUILD_DIR_BASE)/clang-tidy-fixes.yaml
-CF_FAIL_ON_DIFF   := 0
+LIB_BUILD_DIR     := $(BUILD_DIR_BASE)
 
-lib:
-	@mkdir -p $(BUILD_DIR_BASE) && \
-	cd $(BUILD_DIR_BASE) && \
-	cmake .. \
-	-DCMAKE_BUILD_TYPE=Debug \
-	-DEMU_EEPROM_TESTS=ON \
-	&& \
-	make
+.DEFAULT_GOAL := all
 
-test: lib
-	cd $(BUILD_DIR_BASE) && \
-	cd tests && \
-	ctest
-
-format:
-	@echo Checking code formatting...
-	@find . -regex '.*\.\(cpp\|hpp\|h\|cc\|cxx\)' \
-	-exec clang-format -style=file -i {} \;
-ifeq ($(CF_FAIL_ON_DIFF), 1)
-	@git diff -s --exit-code
-endif
-
-lint: lib
-	@cd $(BUILD_DIR_BASE) && \
-	run-clang-tidy \
-	-style=file \
-	-fix \
-	-format \
-	-export-fixes $(CLANG_TIDY_OUT)
-	@if [ -s $(CLANG_TIDY_OUT) ]; then \
-		echo Lint issues found:; \
-		cat $(CLANG_TIDY_OUT); \
-		false; \
+cmake_config:
+	@if [ ! -d $(LIB_BUILD_DIR) ]; then \
+		echo "Generating CMake files"; \
+		cmake \
+		-B $(LIB_BUILD_DIR) \
+		-S $(ROOT_MAKEFILE_DIR) \
+		-DCMAKE_BUILD_TYPE=Debug \
+		-DBUILD_TESTING_EMU_EEPROM=ON \
+		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+		-DCMAKE_CTEST_ARGUMENTS="--verbose"; \
 	fi
+
+all: cmake_config
+	@cmake --build $(LIB_BUILD_DIR)
+
+lib: cmake_config
+	@cmake --build $(LIB_BUILD_DIR) --target emueeprom-lib
+
+test: cmake_config
+	@cmake --build $(LIB_BUILD_DIR) --target test
+
+format: cmake_config
+	@cmake --build $(LIB_BUILD_DIR) --target emueeprom-format
+
+lint: cmake_config
+	@cmake --build $(LIB_BUILD_DIR) --target emueeprom-lint
 
 clean:
 	@echo Cleaning up.
@@ -46,4 +38,4 @@ clean:
 print-%:
 	@echo '$*=$($*)'
 
-.PHONY: lib test format lint clean
+.PHONY: cmake_config all lib test format lint clean
