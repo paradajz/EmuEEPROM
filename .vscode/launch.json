@@ -8,7 +8,7 @@
             "name": "Test",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/tests/src/test/emueeprom-test",
+            "program": "${workspaceFolder}/build/tests/src/test/libemueeprom-test",
             "args": [],
             "stopAtEntry": true,
             "environment": [],

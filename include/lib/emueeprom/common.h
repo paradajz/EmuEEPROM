@@ -22,16 +22,13 @@
 #pragma once
 
 #include <inttypes.h>
-#include <stdio.h>
-#include <array>
 
 #ifndef EMU_EEPROM_PAGE_SIZE
 #error EMU_EEPROM_PAGE_SIZE not defined!
 #endif
 
-class EmuEEPROM
+namespace lib::emueeprom
 {
-    public:
     enum class pageStatus_t : uint32_t
     {
         VALID     = 0x00,          ///< Page containing valid data
@@ -63,7 +60,7 @@ class EmuEEPROM
         PAGE_FACTORY
     };
 
-    class StorageAccess
+    class Hwa
     {
         public:
         virtual bool init()                                                = 0;
@@ -71,35 +68,4 @@ class EmuEEPROM
         virtual bool write32(page_t page, uint32_t address, uint32_t data) = 0;
         virtual bool read32(page_t page, uint32_t address, uint32_t& data) = 0;
     };
-
-    EmuEEPROM(StorageAccess& storageAccess, bool useFactoryPage)
-        : _storageAccess(storageAccess)
-        , _useFactoryPage(useFactoryPage)
-    {}
-
-    bool          init();
-    readStatus_t  read(uint32_t address, uint16_t& data);
-    writeStatus_t write(uint32_t address, uint16_t data, bool cacheOnly = false);
-    bool          format();
-    pageStatus_t  pageStatus(page_t page);
-    writeStatus_t pageTransfer();
-    uint32_t      maxAddress() const;
-    void          writeCacheToFlash();
-
-    private:
-    enum class pageOp_t : uint8_t
-    {
-        READ,
-        WRITE
-    };
-
-    static constexpr uint32_t         MAX_ADDRESS = (EMU_EEPROM_PAGE_SIZE / 4) - 1;
-    StorageAccess&                    _storageAccess;
-    bool                              _useFactoryPage;
-    std::array<uint16_t, MAX_ADDRESS> _eepromCache = {};
-    uint32_t                          _nextOffsetToWrite;
-
-    bool          findValidPage(pageOp_t operation, page_t& page);
-    writeStatus_t writeInternal(uint16_t address, uint16_t data, bool cacheOnly = false);
-    bool          cache();
-};
+}    // namespace lib::emueeprom

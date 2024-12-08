@@ -20,16 +20,16 @@ all: cmake_config
 	@cmake --build $(LIB_BUILD_DIR)
 
 lib: cmake_config
-	@cmake --build $(LIB_BUILD_DIR) --target emueeprom-lib
+	@cmake --build $(LIB_BUILD_DIR) --target libemueeprom
 
 test: cmake_config
 	@cmake --build $(LIB_BUILD_DIR) --target test
 
 format: cmake_config
-	@cmake --build $(LIB_BUILD_DIR) --target emueeprom-format
+	@cmake --build $(LIB_BUILD_DIR) --target libemueeprom-format
 
 lint: cmake_config
-	@cmake --build $(LIB_BUILD_DIR) --target emueeprom-lint
+	@cmake --build $(LIB_BUILD_DIR) --target libemueeprom-lint
 
 clean:
 	@echo Cleaning up.

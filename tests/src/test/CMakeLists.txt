@@ -1,19 +1,19 @@
-add_executable(emueeprom-test
+add_executable(libemueeprom-test
     test.cpp
 )
 
-target_link_libraries(emueeprom-test
+target_link_libraries(libemueeprom-test
     PRIVATE
-    emueeprom-test-common
-    emueeprom-lib
+    liblibemueeprom-test-common
+    libemueeprom
 )
 
-target_compile_definitions(emueeprom-test
+target_compile_definitions(libemueeprom-test
     PRIVATE
     TEST
 )
 
-target_compile_definitions(emueeprom-lib
+target_compile_definitions(libemueeprom
     PUBLIC
     EMU_EEPROM_PAGE_SIZE=128
 )
@@ -24,7 +24,7 @@ add_test(
     "${CMAKE_COMMAND}"
     --build "${CMAKE_BINARY_DIR}"
     --config "$<CONFIG>"
-    --target emueeprom-test
+    --target libemueeprom-test
 )
 
 set_tests_properties(test_build
@@ -35,7 +35,7 @@ set_tests_properties(test_build
 
 add_test(
     NAME test
-    COMMAND $<TARGET_FILE:emueeprom-test>
+    COMMAND $<TARGET_FILE:libemueeprom-test>
 )
 
 set_tests_properties(test
